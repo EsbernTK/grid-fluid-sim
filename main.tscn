@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3 uid="uid://dsfsn15vsny4h"]
+
+[ext_resource type="Script" uid="uid://0iod51tfvrt5" path="res://Fluid.cs" id="1_ig7tw"]
+[ext_resource type="PackedScene" uid="uid://c5ydlecfqa3to" path="res://tile.tscn" id="2_0xm2m"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0xm2m"]
+size = Vector2(1151, 648)
+
+[node name="Node2D" type="Node2D"]
+script = ExtResource("1_ig7tw")
+TileScene = ExtResource("2_0xm2m")
+NCols = 11
+NRows = 15
+
+[node name="FluidArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="FluidArea"]
+visible = false
+position = Vector2(575.5, 324)
+shape = SubResource("RectangleShape2D_0xm2m")

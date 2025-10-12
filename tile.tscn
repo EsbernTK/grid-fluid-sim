@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://c5ydlecfqa3to"]
+
+[node name="Tile" type="Node2D"]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.447251, 1.3236e-07, 0.232379, 1)
