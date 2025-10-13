@@ -10,6 +10,23 @@ public partial class Fluid : Node2D
     [Export] public PackedScene TileScene { get; set; }
     [Export] public PackedScene VectorScene { get; set; }
 
+
+    private bool _stepSimulation;
+    //Make a button in the UI to calculate the next step
+    [Export]
+    public bool StepSimulation
+    {
+        get => _stepSimulation;
+        set
+        {
+            _stepSimulation = value;
+            _Process(0);
+        }
+    }
+    
+    [Export] public int SimulationStepsPerFrame { get; set; } = 10;
+
+
     private int _n_cols = 10;
     [Export]
     public int NCols
@@ -44,8 +61,12 @@ public partial class Fluid : Node2D
     public float viscosity = 0.1f;
     public float timeStep = 1f / 60f;
     public float density = 1f;
+    public float cellSize = 1f;
+
+    [Export] public float MaxVelocity = 5f;
 
     public DisplayVector[][] vectorGrid;
+    public DisplayTile[][] tileGrid;
 
 
     public void setCornerVelocityCallback(int col, int row, Vector2 velocity)
@@ -67,13 +88,11 @@ public partial class Fluid : Node2D
     }
 
 
-    
-    public Node2D[][] tileGrid;
-
-
     public override void _Ready()
     {
         CreateBoard();
+        _stepSimulation = true;
+        _Process(0);
     }
 
     private float GetPressureSafe(int col, int row)
@@ -87,14 +106,14 @@ public partial class Fluid : Node2D
 
     private Vector2 GetVelocitySafe(int col, int row)
     {
-        if (col < 0 || col >= NCols || row < 0 || row >= NRows)
+        if (col <= 0 || col >= NCols || row <= 0 || row >= NRows)
         {
             return Vector2.Zero;
         }
         return tileCornerVelocityGrid[col][row];
     }
 
-    
+
     private float GetPressureAtTile(int col, int row)
     {
         //Calculate the pressure at the center of the tile
@@ -104,9 +123,9 @@ public partial class Fluid : Node2D
         Vector2 vBottomLeft = GetVelocitySafe(col, row + 1);
         Vector2 vBottomRight = GetVelocitySafe(col + 1, row + 1);
 
-        float dx = (vTopRight.X - vTopLeft.X + vBottomRight.X - vBottomLeft.X) * 0.5f;
-        float dy = (vBottomLeft.Y - vTopLeft.Y + vBottomRight.Y - vTopRight.Y) * 0.5f;
-
+        float dx = (vTopLeft.X - vTopRight.X + vBottomLeft.X - vBottomRight.X);
+        float dy = (vTopLeft.Y - vBottomLeft.Y + vTopRight.Y - vBottomRight.Y);
+        float divergence = (dx + dy) / 2f;
 
         float pTopLeft = GetPressureSafe(col - 1, row - 1);
         float pTopMiddle = GetPressureSafe(col, row - 1);
@@ -117,15 +136,82 @@ public partial class Fluid : Node2D
         float pBottomMiddle = GetPressureSafe(col, row + 1);
         float pBottomRight = GetPressureSafe(col + 1, row + 1);
 
-        float dpdx = (pTopRight + pMiddleRight + pBottomRight - pTopLeft - pMiddleLeft - pBottomLeft) / 3f;
+        float pressureSum = pTopLeft + pTopMiddle + pTopRight +
+                            pMiddleLeft + pMiddleRight +
+                            pBottomLeft + pBottomMiddle + pBottomRight;
 
-        float divergence = dx + dy;
 
         //Pressure is proportional to negative divergence
-        float pressure = -density * divergence;
+        float pressure = (pressureSum - density * cellSize * divergence / timeStep) / 8f;
 
         return pressure;
     }
+
+    private Vector2 GetVelocityAtCorner(int col, int row)
+    {
+        //Calculate the new velocity at the corner based on the average of the surrounding tiles' pressures
+        float pTopLeft = GetPressureSafe(col - 1, row - 1);
+        float pTopRight = GetPressureSafe(col, row - 1);
+        float pBottomLeft = GetPressureSafe(col - 1, row);
+        float pBottomRight = GetPressureSafe(col, row);
+
+        Vector2 pressureGradient = new Vector2(
+            (pTopLeft + pBottomLeft - pTopRight - pBottomRight) / (2 * cellSize),
+            (pTopLeft + pTopRight - pBottomLeft - pBottomRight) / (2 * cellSize)
+        );
+
+        Vector2 currentVelocity = GetVelocitySafe(col, row);
+        Vector2 newVelocity = currentVelocity - (pressureGradient / density) * timeStep;
+
+        //Apply simple viscosity
+        //newVelocity *= (1f - viscosity);
+
+        return newVelocity;
+    }
+
+    public void Simulate()
+    {
+        //Calculate the new pressure values for each tile
+        for (int col = 0; col < NCols; col++)
+        {
+            for (int row = 0; row < NRows; row++)
+            {
+                float newPressure = GetPressureAtTile(col, row);
+                tilePressureGrid[col][row] = newPressure;
+                tileGrid[col][row].UpdateColor(newPressure);
+            }
+        }
+        //Calculate the new velocity values for each corner
+        for (int col = 0; col <= NCols; col++)
+        {
+            for (int row = 0; row <= NRows; row++)
+            {
+                Vector2 newVelocity = GetVelocityAtCorner(col, row);
+                tileCornerVelocityGrid[col][row] = newVelocity;
+                //newVelocity = GetVelocitySafe(col, row);
+                //tileCornerVelocityGrid[col][row] = newVelocity;
+                vectorGrid[col][row].Value = newVelocity;
+            }
+        }
+
+    }
+
+
+    public override void _Process(double delta)
+    {
+        if (_stepSimulation)
+        {
+            //If we are in the editor, we need to reset the flag
+            if (Engine.IsEditorHint())
+                _stepSimulation = false;
+
+            for (int i = 0; i < SimulationStepsPerFrame; i++)
+            {
+                Simulate();
+            }
+        }
+    }
+
 
 
     private void CreateBoard()
@@ -145,7 +231,7 @@ public partial class Fluid : Node2D
             return;
         }
 
-        Node2D abstractTile = TileScene.Instantiate<Node2D>();
+        DisplayTile abstractTile = TileScene.Instantiate<DisplayTile>();
         //Get the size of the tile
         Area2D tileArea = abstractTile.GetNode<Area2D>("Area2D");
         CollisionShape2D tileAreaShape = tileArea.GetNode<CollisionShape2D>("CollisionShape2D");
@@ -170,17 +256,17 @@ public partial class Fluid : Node2D
         Vector2 gridSize = new Vector2(xLength, yLength);
         Vector2 gridOffset = (areaSize - gridSize) / 2;
 
-        tileGrid = new Node2D[NCols][];
+        tileGrid = new DisplayTile[NCols][];
         tilePressureGrid = new float[NCols][];
         //Spawn tiles in a grid pattern
         for (int col = 0; col < NCols; col++)
         {
-            tileGrid[col] = new Node2D[NRows];
+            tileGrid[col] = new DisplayTile[NRows];
             tilePressureGrid[col] = new float[NRows];
             for (int row = 0; row < NRows; row++)
             {
                 Vector2 position = new Vector2(col * xSpacing, row * ySpacing) + gridOffset;
-                var tileInstance = TileScene.Instantiate<Node2D>();
+                var tileInstance = TileScene.Instantiate<DisplayTile>();
                 tileInstance.Position = position;
                 AddChild(tileInstance);
                 tileGrid[col][row] = tileInstance;
@@ -191,20 +277,25 @@ public partial class Fluid : Node2D
 
         //Initialize the tile corner velocity grid
         tileCornerVelocityGrid = new Vector2[NCols + 1][];
+        vectorGrid = new DisplayVector[NCols + 1][];
         for (int i = 0; i <= NCols; i++)
         {
             tileCornerVelocityGrid[i] = new Vector2[NRows + 1];
+            vectorGrid[i] = new DisplayVector[NRows + 1];
             for (int j = 0; j <= NRows; j++)
             {
                 //Initialize all velocities to zero
                 Vector2 randomVelocity = new Vector2(
-                    (float)GD.RandRange(-50, 50),
-                    (float)GD.RandRange(-50, 50)
+                    (float)GD.RandRange(-50, 50) / 50 * MaxVelocity,
+                    (float)GD.RandRange(-50, 50) / 50 * MaxVelocity
                 );
 
 
 
                 tileCornerVelocityGrid[i][j] = randomVelocity;
+                randomVelocity = GetVelocitySafe(i, j);
+                tileCornerVelocityGrid[i][j] = randomVelocity;
+
                 DisplayVector vectorInstance = VectorScene.Instantiate<DisplayVector>();
                     if (vectorInstance is not DisplayVector)
                     {
@@ -217,6 +308,7 @@ public partial class Fluid : Node2D
 
                 displayVector.Value = randomVelocity;
                 displayVector.OnVectorChanged = setCornerVelocityCallback;
+                vectorGrid[i][j] = displayVector;
                 AddChild(vectorInstance);
                 vectorInstance.Position = new Vector2(i * xSpacing, j * ySpacing) + gridOffset; //Offset to center the vector on the corner
             }

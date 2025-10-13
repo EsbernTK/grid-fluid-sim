@@ -1,9 +1,13 @@
-[gd_scene load_steps=2 format=3 uid="uid://c5ydlecfqa3to"]
+[gd_scene load_steps=3 format=3 uid="uid://c5ydlecfqa3to"]
+
+[ext_resource type="Script" uid="uid://cjw7urqk8y07r" path="res://DisplayTile.cs" id="1_n3f48"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_yhqha"]
 size = Vector2(40, 40)
 
 [node name="Tile" type="Node2D"]
+script = ExtResource("1_n3f48")
+NeutralColor = Color(0.165656, 0.165656, 0.165656, 1)
 
 [node name="ColorRect" type="ColorRect" parent="."]
 offset_right = 40.0
@@ -13,5 +17,16 @@ color = Color(0.00923967, 0.0100779, 0.0231538, 1)
 [node name="Area2D" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+visible = false
 position = Vector2(20, 20)
 shape = SubResource("RectangleShape2D_yhqha")
+
+[node name="RichTextLabel" type="RichTextLabel" parent="."]
+offset_left = 4.0
+offset_top = 3.0
+offset_right = 35.0
+offset_bottom = 35.0
+fit_content = true
+scroll_active = false
+horizontal_alignment = 1
+vertical_alignment = 1
