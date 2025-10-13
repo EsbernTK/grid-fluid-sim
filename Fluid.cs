@@ -56,7 +56,9 @@ public partial class Fluid : Node2D
 
     //This grid stores the velocity of each tile corner, it will have (NCols + 1) * (NRows + 1) elements
     public Vector2[][] tileCornerVelocityGrid;
+    public Vector2[][] tempTileCornerVelocityGrid;
     public float[][] tilePressureGrid;
+    public float[][] tempTilePressureGrid;
 
     public float viscosity = 0.1f;
     public float timeStep = 1f / 60f;
@@ -123,8 +125,14 @@ public partial class Fluid : Node2D
         Vector2 vBottomLeft = GetVelocitySafe(col, row + 1);
         Vector2 vBottomRight = GetVelocitySafe(col + 1, row + 1);
 
-        float dx = (vTopLeft.X - vTopRight.X + vBottomLeft.X - vBottomRight.X);
-        float dy = (vTopLeft.Y - vBottomLeft.Y + vTopRight.Y - vBottomRight.Y);
+
+        Vector2 vTop = (vTopLeft + vTopRight) / 2f;
+        Vector2 vBottom = (vBottomLeft + vBottomRight) / 2f;
+        Vector2 vLeft = (vTopLeft + vBottomLeft) / 2f;
+        Vector2 vRight = (vTopRight + vBottomRight) / 2f;
+
+        float dx = vLeft.X - vRight.X;
+        float dy = vTop.Y - vBottom.Y;
         float divergence = (dx + dy) / 2f;
 
         float pTopLeft = GetPressureSafe(col - 1, row - 1);
@@ -177,22 +185,26 @@ public partial class Fluid : Node2D
             for (int row = 0; row < NRows; row++)
             {
                 float newPressure = GetPressureAtTile(col, row);
-                tilePressureGrid[col][row] = newPressure;
+                tempTilePressureGrid[col][row] = newPressure;
                 tileGrid[col][row].UpdateColor(newPressure);
             }
         }
+        //Swap pressure grids
+        tilePressureGrid = tempTilePressureGrid;
         //Calculate the new velocity values for each corner
         for (int col = 0; col <= NCols; col++)
         {
             for (int row = 0; row <= NRows; row++)
             {
                 Vector2 newVelocity = GetVelocityAtCorner(col, row);
-                tileCornerVelocityGrid[col][row] = newVelocity;
+                tempTileCornerVelocityGrid[col][row] = newVelocity;
                 //newVelocity = GetVelocitySafe(col, row);
                 //tileCornerVelocityGrid[col][row] = newVelocity;
                 vectorGrid[col][row].Value = newVelocity;
             }
         }
+        //Swap velocity grids
+        tileCornerVelocityGrid = tempTileCornerVelocityGrid;
 
     }
 
@@ -257,11 +269,13 @@ public partial class Fluid : Node2D
         Vector2 gridOffset = (areaSize - gridSize) / 2;
 
         tileGrid = new DisplayTile[NCols][];
+        tempTilePressureGrid = new float[NCols][];
         tilePressureGrid = new float[NCols][];
         //Spawn tiles in a grid pattern
         for (int col = 0; col < NCols; col++)
         {
             tileGrid[col] = new DisplayTile[NRows];
+            tempTilePressureGrid[col] = new float[NRows];
             tilePressureGrid[col] = new float[NRows];
             for (int row = 0; row < NRows; row++)
             {
@@ -272,16 +286,19 @@ public partial class Fluid : Node2D
                 tileGrid[col][row] = tileInstance;
                 //Set the tile's fluid property to this
                 tilePressureGrid[col][row] = 0f;
+                tempTilePressureGrid[col][row] = 0f;
             }
         }
 
         //Initialize the tile corner velocity grid
         tileCornerVelocityGrid = new Vector2[NCols + 1][];
         vectorGrid = new DisplayVector[NCols + 1][];
+        tempTileCornerVelocityGrid = new Vector2[NCols + 1][];
         for (int i = 0; i <= NCols; i++)
         {
             tileCornerVelocityGrid[i] = new Vector2[NRows + 1];
             vectorGrid[i] = new DisplayVector[NRows + 1];
+            tempTileCornerVelocityGrid[i] = new Vector2[NRows + 1];
             for (int j = 0; j <= NRows; j++)
             {
                 //Initialize all velocities to zero
@@ -295,6 +312,7 @@ public partial class Fluid : Node2D
                 tileCornerVelocityGrid[i][j] = randomVelocity;
                 randomVelocity = GetVelocitySafe(i, j);
                 tileCornerVelocityGrid[i][j] = randomVelocity;
+                tempTileCornerVelocityGrid[i][j] = randomVelocity;
 
                 DisplayVector vectorInstance = VectorScene.Instantiate<DisplayVector>();
                     if (vectorInstance is not DisplayVector)
