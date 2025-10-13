@@ -26,6 +26,7 @@ offset_left = 4.0
 offset_top = 3.0
 offset_right = 35.0
 offset_bottom = 35.0
+bbcode_enabled = true
 fit_content = true
 scroll_active = false
 horizontal_alignment = 1

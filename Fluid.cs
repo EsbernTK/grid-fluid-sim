@@ -23,9 +23,12 @@ public partial class Fluid : Node2D
             _Process(0);
         }
     }
-    
+
     [Export] public int SimulationStepsPerFrame { get; set; } = 10;
 
+
+    [Export] public bool UpdateVelocities { get; set; } = true;
+    [Export] public bool UpdatePressures { get; set; } = true;
 
     private int _n_cols = 10;
     [Export]
@@ -97,18 +100,28 @@ public partial class Fluid : Node2D
         _Process(0);
     }
 
+    private bool IsTileValid(int col, int row)
+    {
+        return (col >= 0 && col < NCols && row >= 0 && row < NRows);
+    }
+
     private float GetPressureSafe(int col, int row)
     {
-        if (col < 0 || col >= NCols || row < 0 || row >= NRows)
+        if (!IsTileValid(col, row))
         {
             return 0f;
         }
         return tilePressureGrid[col][row];
     }
 
+    private bool IsCornerValid(int col, int row)
+    {
+        return (col > 0 && col < NCols && row > 0 && row < NRows);
+    }
+
     private Vector2 GetVelocitySafe(int col, int row)
     {
-        if (col <= 0 || col >= NCols || row <= 0 || row >= NRows)
+        if (!IsCornerValid(col, row))
         {
             return Vector2.Zero;
         }
@@ -133,7 +146,14 @@ public partial class Fluid : Node2D
 
         float dx = vLeft.X - vRight.X;
         float dy = vTop.Y - vBottom.Y;
-        float divergence = (dx + dy) / 2f;
+        //float dx = (vRight.X - vLeft.X);
+        //float dy = (vBottom.Y - vTop.Y);
+
+        //float dx = (vTopLeft.X - vTopRight.X + vBottomLeft.X - vBottomRight.X);
+        //float dy = (vTopLeft.Y - vBottomLeft.Y + vTopRight.Y - vBottomRight.Y);
+
+
+        float divergence = dx + dy;
 
         float pTopLeft = GetPressureSafe(col - 1, row - 1);
         float pTopMiddle = GetPressureSafe(col, row - 1);
@@ -147,6 +167,10 @@ public partial class Fluid : Node2D
         float pressureSum = pTopLeft + pTopMiddle + pTopRight +
                             pMiddleLeft + pMiddleRight +
                             pBottomLeft + pBottomMiddle + pBottomRight;
+
+        //float pressureSum =  0f + pTopMiddle + 0f +
+        //                    pMiddleLeft + 0f + pMiddleRight +
+        //                    0f + pBottomMiddle + 0f;
 
 
         //Pressure is proportional to negative divergence
@@ -163,13 +187,58 @@ public partial class Fluid : Node2D
         float pBottomLeft = GetPressureSafe(col - 1, row);
         float pBottomRight = GetPressureSafe(col, row);
 
-        Vector2 pressureGradient = new Vector2(
-            (pTopLeft + pBottomLeft - pTopRight - pBottomRight) / (2 * cellSize),
-            (pTopLeft + pTopRight - pBottomLeft - pBottomRight) / (2 * cellSize)
-        );
+        //Vector2 pressureGradient = new Vector2(
+        //    (pTopLeft + pBottomLeft - pTopRight - pBottomRight) / (4 * cellSize),
+        //    (pTopLeft + pTopRight - pBottomLeft - pBottomRight) / (4 * cellSize)
+        //);
+
+        float pTop = (pTopLeft + pTopRight) / 2f;
+        float pBottom = (pBottomLeft + pBottomRight) / 2f;
+        float pLeft = (pTopLeft + pBottomLeft) / 2f;
+        float pRight = (pTopRight + pBottomRight) / 2f;
+
+        float pDiagBottomLeft = (pBottomLeft + pTopLeft/2  + pBottomRight/2) / 2f;
+        float pDiagTopRight = (pTopRight + pBottomRight / 2 + pTopLeft / 2) / 2f;
+        
+        
+        
+        float pDiagBottomLeftTopRightGradient = pDiagBottomLeft - pDiagTopRight;
+        //float pDiagBottomLeftTopRightX = pDiagBottomLeftTopRightGradient  * Mathf.Cos(Mathf.Pi / 4);
+        //float pDiagBottomLeftTopRightY = pDiagBottomLeftTopRightGradient  * Mathf.Sin(Mathf.Pi / 4);
+
+        float pDiagTopLeft = (pTopLeft + pTopRight/2 + pBottomLeft/2) / 2f;
+        float pDiagBottomRight = (pBottomRight + pBottomLeft / 2 + pTopRight / 2) / 2f;
+
+        float pDiagTopLeftBottomRightGradient = pDiagTopLeft - pDiagBottomRight;
+        
+        //float pDiagTopLeftBottomRightX = pDiagTopLeftBottomRightGradient * Mathf.Cos(Mathf.Pi / 4 );
+        //float pDiagTopLeftBottomRightY = -pDiagTopLeftBottomRightGradient  * Mathf.Sin(Mathf.Pi / 4);
+
+        float pTopBottomGradient = pTop - pBottom;
+        float pLeftRightGradient = pLeft - pRight;
+
+
+        Vector2 TopVector = new Vector2(0, pTopBottomGradient);
+        Vector2 RightVector = new Vector2(pLeftRightGradient, 0);
+        Vector2 DiagBLTRVector = new Vector2(1, -1).Normalized() * pDiagBottomLeftTopRightGradient;
+        Vector2 DiagTLBRVector = new Vector2(-1, 1).Normalized() * pDiagTopLeftBottomRightGradient;
+        Vector2 pressureGradient = TopVector + RightVector + DiagBLTRVector + DiagTLBRVector;
+        // Vector2 pressureGradient = new Vector2(
+        //    (pLeft - pRight) / cellSize,
+        //    (pTop - pBottom) / cellSize
+        //);
+
+        //Vector2 pressureGradient = new Vector2(
+        //    (pLeft - pRight + pDiagBottomLeftTopRightX - pDiagTopLeftBottomRightX) / cellSize,
+        //    (pTop - pBottom + pDiagBottomLeftTopRightY - pDiagTopLeftBottomRightY) / cellSize
+        //);
 
         Vector2 currentVelocity = GetVelocitySafe(col, row);
-        Vector2 newVelocity = currentVelocity - (pressureGradient / density) * timeStep;
+        float K = timeStep / (density * cellSize);
+        
+        GD.Print("Corner (", col, ", ", row, ") pressure gradient: ", K * pressureGradient, " current velocity: ", currentVelocity);
+
+        Vector2 newVelocity = currentVelocity -  K * pressureGradient;
 
         //Apply simple viscosity
         //newVelocity *= (1f - viscosity);
@@ -178,33 +247,49 @@ public partial class Fluid : Node2D
     }
 
     public void Simulate()
-    {
-        //Calculate the new pressure values for each tile
-        for (int col = 0; col < NCols; col++)
-        {
-            for (int row = 0; row < NRows; row++)
+    {   
+        
+        if (UpdatePressures){
+            //Calculate the new pressure values for each tile
+            for (int col = 0; col < NCols; col++)
             {
-                float newPressure = GetPressureAtTile(col, row);
-                tempTilePressureGrid[col][row] = newPressure;
-                tileGrid[col][row].UpdateColor(newPressure);
+                for (int row = 0; row < NRows; row++)
+                {
+                    float newPressure = GetPressureAtTile(col, row);
+                    tempTilePressureGrid[col][row] = newPressure;
+                    tileGrid[col][row].UpdateColor(newPressure);
+                }
             }
+            //Swap pressure grids
+            tilePressureGrid = tempTilePressureGrid;
         }
-        //Swap pressure grids
-        tilePressureGrid = tempTilePressureGrid;
-        //Calculate the new velocity values for each corner
-        for (int col = 0; col <= NCols; col++)
+
+        if (UpdateVelocities)
         {
-            for (int row = 0; row <= NRows; row++)
+            //Calculate the new velocity values for each corner
+            for (int col = 0; col <= NCols; col++)
             {
-                Vector2 newVelocity = GetVelocityAtCorner(col, row);
-                tempTileCornerVelocityGrid[col][row] = newVelocity;
-                //newVelocity = GetVelocitySafe(col, row);
-                //tileCornerVelocityGrid[col][row] = newVelocity;
-                vectorGrid[col][row].Value = newVelocity;
+                for (int row = 0; row <= NRows; row++)
+                {
+                    Vector2 currentVelocity = GetVelocitySafe(col, row);
+                    Vector2 newVelocity = GetVelocityAtCorner(col, row);
+                
+                    if(!IsCornerValid(col, row) )
+                    {
+                        newVelocity = Vector2.Zero;
+                    }
+
+                    tempTileCornerVelocityGrid[col][row] = newVelocity;
+                    //GD.Print("Corner (", col, ", ", row, ") current velocity: ", currentVelocity, " new velocity: ", newVelocity);
+
+                    //newVelocity = GetVelocitySafe(col, row);
+                    //tileCornerVelocityGrid[col][row] = newVelocity;
+                    vectorGrid[col][row].Value = newVelocity;
+                }
             }
+            //Swap velocity grids
+            tileCornerVelocityGrid = tempTileCornerVelocityGrid;
         }
-        //Swap velocity grids
-        tileCornerVelocityGrid = tempTileCornerVelocityGrid;
 
     }
 
@@ -287,6 +372,8 @@ public partial class Fluid : Node2D
                 //Set the tile's fluid property to this
                 tilePressureGrid[col][row] = 0f;
                 tempTilePressureGrid[col][row] = 0f;
+                tileInstance.UpdateColor(0f);
+
             }
         }
 
@@ -303,8 +390,8 @@ public partial class Fluid : Node2D
             {
                 //Initialize all velocities to zero
                 Vector2 randomVelocity = new Vector2(
-                    (float)GD.RandRange(-50, 50) / 50 * MaxVelocity,
-                    (float)GD.RandRange(-50, 50) / 50 * MaxVelocity
+                    (float)GD.RandRange(-100, 100) / 100 * MaxVelocity,
+                    (float)GD.RandRange(-100, 100) / 100 * MaxVelocity
                 );
 
 

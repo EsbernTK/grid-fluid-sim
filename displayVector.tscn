@@ -4,6 +4,6 @@
 
 [node name="DisplayVectorObject" type="Node2D"]
 script = ExtResource("1_kby22")
-Thickness = 1.5
-ArrowSize = 6.0
+Thickness = 1.0
+ArrowSize = 4.0
 OriginDotRadius = 2.0

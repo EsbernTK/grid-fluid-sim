@@ -23,7 +23,7 @@ public partial class DisplayTile : Node2D
     {
 
 
-        Label.Text = pressure.ToString("F2");
+        Label.Text = "[font_size=10] " + pressure.ToString("F2") + " [/font_size]";
         
         if (pressure < 0)
         {

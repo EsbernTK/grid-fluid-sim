@@ -11,12 +11,13 @@ size = Vector2(1151, 649)
 script = ExtResource("1_ig7tw")
 TileScene = ExtResource("2_0xm2m")
 VectorScene = ExtResource("3_h2yge")
-SimulationStepsPerFrame = 30
-NCols = 21
-NRows = 16
+SimulationStepsPerFrame = 5
+NCols = 19
+NRows = 14
+MaxVelocity = 50.0
 
 [node name="FluidArea" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="FluidArea"]
-position = Vector2(575.5, 324.5)
+position = Vector2(575.22, 325.085)
 shape = SubResource("RectangleShape2D_0xm2m")
