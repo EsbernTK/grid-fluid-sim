@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://dsfsn15vsny4h"]
 
-[ext_resource type="Script" uid="uid://0iod51tfvrt5" path="res://Fluid.cs" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://0iod51tfvrt5" path="res://FluidSim.cs" id="1_h2yge"]
 [ext_resource type="PackedScene" uid="uid://c5ydlecfqa3to" path="res://tile.tscn" id="2_0xm2m"]
 [ext_resource type="PackedScene" uid="uid://d3fe8sf2ju458" path="res://displayVector.tscn" id="3_h2yge"]
 
@@ -8,13 +8,12 @@
 size = Vector2(1151, 649)
 
 [node name="Node2D" type="Node2D"]
-script = ExtResource("1_ig7tw")
+script = ExtResource("1_h2yge")
 TileScene = ExtResource("2_0xm2m")
 VectorScene = ExtResource("3_h2yge")
-SimulationStepsPerFrame = 5
+SimulationStepsPerFrame = 1
 NCols = 19
-NRows = 14
-MaxVelocity = 50.0
+NRows = 12
 
 [node name="FluidArea" type="Area2D" parent="."]
 
