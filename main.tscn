@@ -12,8 +12,8 @@ script = ExtResource("1_h2yge")
 TileScene = ExtResource("2_0xm2m")
 VectorScene = ExtResource("3_h2yge")
 SimulationStepsPerFrame = 1
-NCols = 19
-NRows = 12
+NCols = 20
+NRows = 15
 
 [node name="FluidArea" type="Area2D" parent="."]
 

@@ -15,9 +15,74 @@ public partial class DisplayTile : Node2D
     [Export] public float MinPressure { get; set; } = -10f;
     [Export] public float MaxPressure { get; set; } = 10f;
 
-    ColorRect ColorRect => GetNode<ColorRect>("ColorRect");
+    ColorRect MyColorRect => GetNodeOrNull<ColorRect>("ColorRect");
+    Polygon2D MyPolygon => GetNodeOrNull<Polygon2D>("Polygon2D");
 
     RichTextLabel Label => GetNode<RichTextLabel>("RichTextLabel");
+
+
+    public override void _Ready()
+    {
+        //we are not sure if this script will have a ColorRect or Polygon2D child, so we try to get both
+        //try
+        //{
+        //    MyColorRect = GetNode<ColorRect>("ColorRect");
+        //}
+        //catch (Exception)
+        //{
+        //    //do nothing
+        //}
+        //try
+        //{
+        //    MyPolygon = GetNode<Polygon2D>("Polygon2D");
+        //}
+        //catch (Exception)
+        //{
+        //    //do nothing
+        //}
+    }
+
+
+    public Vector2 getPolygonSize(Polygon2D polygon)
+    {
+        if (polygon != null)
+        {
+            //Get the bounding box of the polygon
+            Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
+            Vector2 max = new Vector2(float.MinValue, float.MinValue);
+            foreach (Vector2 point in polygon.Polygon)
+            {
+                if (point.X < min.X) min.X = point.X;
+                if (point.Y < min.Y) min.Y = point.Y;
+                if (point.X > max.X) max.X = point.X;
+                if (point.Y > max.Y) max.Y = point.Y;
+            }
+            return (max - min) * polygon.Scale;
+        }
+        else
+        {
+            return Vector2.Zero;
+        }
+    }
+
+    public Vector2 GetTileSize()
+    {   
+        GD.Print("Getting Tile Size, MyColorRect: ", MyColorRect, " MyPolygon: ", MyPolygon);
+        if (MyColorRect != null)
+        {
+            return MyColorRect.Size;
+        }
+        else if (MyPolygon != null)
+        {
+            //Get the bounding box of the polygon
+            Vector2 bbox = getPolygonSize(MyPolygon);
+            return bbox;
+        }
+        else
+        {
+            return Vector2.Zero;
+        }
+    }
 
     public void UpdateColor(float pressure)
     {
@@ -31,7 +96,14 @@ public partial class DisplayTile : Node2D
             float t = pressure / MinPressure;
             t = Mathf.Clamp(t, 0f, 1f);
             Color color = NeutralColor + (NegativeColor - NeutralColor) * t;
-            ColorRect.Color = color;
+            if (MyPolygon != null)
+            {
+                MyPolygon.Color = color;
+            }
+            if (MyColorRect != null)
+            {
+                MyColorRect.Color = color;
+            }
             return;
         }
 
@@ -41,7 +113,14 @@ public partial class DisplayTile : Node2D
             float t = pressure / MaxPressure;
             t = Mathf.Clamp(t, 0f, 1f);
             Color color = NeutralColor + (PositiveColor - NeutralColor) * t;
-            ColorRect.Color = color;
+            if (MyPolygon != null)
+            {
+                MyPolygon.Color = color;
+            }
+            if (MyColorRect != null)
+            {
+                MyColorRect.Color = color;
+            }
             return;
         }
     }

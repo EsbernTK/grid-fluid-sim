@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3 uid="uid://6xpenqu0iuid"]
+
+[ext_resource type="Script" uid="uid://cjw7urqk8y07r" path="res://DisplayTile.cs" id="1_bt7cu"]
+
+[node name="Hexagon" type="Node2D"]
+script = ExtResource("1_bt7cu")
+NeutralColor = Color(0.165656, 0.165656, 0.165656, 1)
+
+[node name="RichTextLabel" type="RichTextLabel" parent="."]
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 16.0
+offset_bottom = 16.0
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Polygon2D" type="Polygon2D" parent="."]
+scale = Vector2(30, 30)
+polygon = PackedVector2Array(0, -1, 0.866, -0.5, 0.866, 0.5, 0, 1, -0.866, 0.5, -0.866, -0.5)
