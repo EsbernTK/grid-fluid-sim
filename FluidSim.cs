@@ -2,10 +2,36 @@ using Godot;
 using System;
 using System.Net;
 
-public class FluidSimBaseClass
+public abstract class FluidSimBase
 {
-    public Vector2[][] velocityGrid;
-    public Vector2[][] tempVelocityGrid;
+    // Non-generic API surface used by the scene code so simulations using
+    // different vector types (Vector2/Vector3) are interchangeable at runtime.
+    // The concrete generic implementation will hold the typed grids and
+    // implement these abstract methods.
+
+    // Returns the internal pressure grid (float[][])
+    public abstract float[][] GetPressureGrid();
+
+    // Returns the internal velocity grid as object[][] where each entry is boxed Vector2 or Vector3
+    public abstract object[][] GetVelocityGridAsObjects();
+
+    // Update pressure grid and return it (same as original signature)
+    public abstract float[][] UpdatePressureMap();
+
+    // Update velocity grid and return it as object[][] (boxed values)
+    public abstract object[][] UpdateAndGetVelocityMap();
+
+    public abstract Vector2 GetVelocityUV(int col, int row);
+    public abstract Vector2 GetTileUV(int col, int row);
+
+    public abstract void RandomizeGrid();
+}
+
+
+public class FluidSimBaseClass<T> : FluidSimBase
+{
+    public T[][] velocityGrid;
+    public T[][] tempVelocityGrid;
     public float[][] pressureGrid;
     public float[][] tempPressureGrid;
 
@@ -34,14 +60,14 @@ public class FluidSimBaseClass
     public virtual void CreateGrid()
     {
         //Initialize the tile corner velocity grid
-        velocityGrid = new Vector2[nCols + 1][];
-        tempVelocityGrid = new Vector2[nCols + 1][];
+        velocityGrid = new T[nCols + 1][];
+        tempVelocityGrid = new T[nCols + 1][];
         pressureGrid = new float[nCols][];
         tempPressureGrid = new float[nCols][];
         for (int i = 0; i <= nCols; i++)
         {
-            velocityGrid[i] = new Vector2[nRows + 1];
-            tempVelocityGrid[i] = new Vector2[nRows + 1];
+            velocityGrid[i] = new T[nRows + 1];
+            tempVelocityGrid[i] = new T[nRows + 1];
             if (i < nCols)
             {
                 pressureGrid[i] = new float[nRows];
@@ -50,7 +76,7 @@ public class FluidSimBaseClass
             for (int j = 0; j <= nRows; j++)
             {
 
-                Vector2 velocity = Vector2.Zero;
+                T velocity = getZeroVector();
                 if (IsCornerValid(i, j))
                 {
                     velocity = GetRandomVelocity();
@@ -68,9 +94,20 @@ public class FluidSimBaseClass
     }
 
 
-    public virtual Vector2 getZeroVector()
+    public virtual T getZeroVector()
     {
-        return Vector2.Zero;
+        if (typeof(T) == typeof(Vector3))
+        {
+            return (T)(object)Vector3.Zero;
+        }
+        else if (typeof(T) == typeof(Vector2))
+        {
+            return (T)(object)Vector2.Zero;
+        }
+        else
+        {
+            throw new NotImplementedException("getZeroVector not implemented for type " + typeof(T).ToString());
+        }
     }
 
     public virtual void RandomizeVelocityGrid()
@@ -102,13 +139,13 @@ public class FluidSimBaseClass
         }
     }
 
-    public virtual void RandomizeGrid()
+    public override void RandomizeGrid()
     {
         RandomizeVelocityGrid();
         RandomizePressureGrid();
     }
 
-    public virtual Vector2 GetVelocityUV(int col, int row)
+    public override Vector2 GetVelocityUV(int col, int row)
     {
         //Returns where the velocity is in UV space
         float u = (float)col / nCols;
@@ -116,7 +153,7 @@ public class FluidSimBaseClass
         return new Vector2(u, v);
     }
 
-    public virtual Vector2 GetTileUV(int col, int row)
+    public override Vector2 GetTileUV(int col, int row)
     {
         //Returns where the tile is in UV space
         float u = (float)col / (nCols - 1);
@@ -124,12 +161,27 @@ public class FluidSimBaseClass
         return new Vector2(u, v);
     }
 
-    public virtual Vector2 GetRandomVelocity()
+    public virtual T GetRandomVelocity()
     {
-        return new Vector2(
-            (float)GD.RandRange(-100, 100) / 100 * maxVelocity,
-            (float)GD.RandRange(-100, 100) / 100 * maxVelocity
-        );
+        if (typeof(T) == typeof(Vector3))
+        {
+            return (T)(object)new Vector3(
+                (float)GD.RandRange(-100, 100) / 100 * maxVelocity,
+                (float)GD.RandRange(-100, 100) / 100 * maxVelocity,
+                (float)GD.RandRange(-100, 100) / 100 * maxVelocity
+            );
+        }
+        else if (typeof(T) == typeof(Vector2))
+        {
+            return (T)(object)new Vector2(
+                (float)GD.RandRange(-100, 100) / 100 * maxVelocity,
+                (float)GD.RandRange(-100, 100) / 100 * maxVelocity
+            );
+        }
+        else
+        {
+            throw new NotImplementedException("GetRandomVelocity not implemented for type " + typeof(T).ToString());
+        }
     }
 
     //Simulation methods would go here
@@ -152,7 +204,7 @@ public class FluidSimBaseClass
         return (col > 0 && col < nCols && row > 0 && row < nRows);
     }
 
-    protected virtual Vector2 GetVelocitySafe(int col, int row)
+    protected virtual T GetVelocitySafe(int col, int row)
     {
         if (!IsCornerValid(col, row))
         {
@@ -163,15 +215,16 @@ public class FluidSimBaseClass
 
     public virtual float UpdatePressure(int col, int row)
     {
+        GD.Print("Updating pressure at Tile, BaseClass (", col, ",", row, ")");
         return GetPressureSafe(col, row);
     }
 
-    public virtual Vector2 UpdateVelocity(int col, int row)
+    public virtual T UpdateVelocity(int col, int row)
     {
         return GetVelocitySafe(col, row);
     }
 
-    public virtual float[][] UpdatePressureMap()
+    public override float[][] UpdatePressureMap()
     {
         //Calculate the new pressure values for each tile
         for (int col = 0; col < nCols; col++)
@@ -190,16 +243,16 @@ public class FluidSimBaseClass
 
     protected virtual void UpdateVelocityMap()
     {
-         //Calculate the new velocity values for each corner
+        //Calculate the new velocity values for each corner
         for (int col = 0; col <= nCols; col++)
         {
             for (int row = 0; row <= nRows; row++)
             {
-                Vector2 newVelocity = UpdateVelocity(col, row);
+                T newVelocity = UpdateVelocity(col, row);
 
                 if (!IsCornerValid(col, row))
                 {
-                    newVelocity = Vector2.Zero;
+                    newVelocity = getZeroVector();
                 }
 
                 tempVelocityGrid[col][row] = newVelocity;
@@ -209,17 +262,65 @@ public class FluidSimBaseClass
         velocityGrid = tempVelocityGrid;
     }
 
-    public virtual Vector2[][] UpdateAndGetVelocityMap()
+    // Keep the strongly-typed update method for internal/derived use
+    public virtual T[][] UpdateAndGetVelocityMapGeneric()
     {
         UpdateVelocityMap();
         return velocityGrid;
+    }
+
+    // Implement the non-generic abstract API by boxing into object[][]
+    public override object[][] UpdateAndGetVelocityMap()
+    {
+        var typed = UpdateAndGetVelocityMapGeneric();
+        int dim0 = typed.Length;
+        object[][] boxed = new object[dim0][];
+        for (int i = 0; i < dim0; i++)
+        {
+            boxed[i] = new object[typed[i].Length];
+            for (int j = 0; j < typed[i].Length; j++)
+            {
+                boxed[i][j] = (object)typed[i][j];
+            }
+        }
+        return boxed;
+    }
+
+    public override object[][] GetVelocityGridAsObjects()
+    {
+        int dim0 = velocityGrid.Length;
+        object[][] boxed = new object[dim0][];
+        for (int i = 0; i < dim0; i++)
+        {
+            boxed[i] = new object[velocityGrid[i].Length];
+            for (int j = 0; j < velocityGrid[i].Length; j++)
+            {
+                boxed[i][j] = (object)velocityGrid[i][j];
+            }
+        }
+        return boxed;
+    }
+
+    public override float[][] GetPressureGrid()
+    {
+        return pressureGrid;
     }
 
 
 
 }
 
-public class FluidCornerSim : FluidSimBaseClass
+
+public class SquareFluidSimBaseClass : FluidSimBaseClass<Vector2>
+{
+    public SquareFluidSimBaseClass(int n_cols, int n_rows, float viscosity, float timeStep, float density, float cellSize, float maxVelocity)
+        : base(n_cols, n_rows, viscosity, timeStep, density, cellSize, maxVelocity)
+    {
+    }
+}
+
+
+public class FluidCornerSim : SquareFluidSimBaseClass
 {
 
 
@@ -376,7 +477,7 @@ public class FluidCornerSim : FluidSimBaseClass
 }
 
 
-public class FluidEdgeSim : FluidSimBaseClass
+public class FluidEdgeSim : SquareFluidSimBaseClass
 {
     public FluidEdgeSim(int n_cols, int n_rows, float viscosity, float timeStep, float density, float cellSize, float maxVelocity)
         : base(n_cols, n_rows, viscosity, timeStep, density, cellSize, maxVelocity)
@@ -557,7 +658,7 @@ public partial class FluidSim : Node2D
         set
         {
             _simulationType = value;
-            //CreateBoard();
+            CreateBoard();
             //StepSimulation = true;
         }
     }
@@ -602,7 +703,7 @@ public partial class FluidSim : Node2D
     public DisplayTile[][] tileGrid;
 
 
-    private FluidSimBaseClass _fluidSim;
+    private FluidSimBase _fluidSim;
 
     public void setCornerVelocityCallback(int col, int row, Vector2 velocity)
     {
@@ -637,6 +738,7 @@ public partial class FluidSim : Node2D
         if (UpdatePressures)
         {
             float[][] updatedPressure = _fluidSim.UpdatePressureMap();
+            GD.Print("Updated pressure map: ", updatedPressure);
             for (int col = 0; col < NCols; col++)
             {
                 for (int row = 0; row < NRows; row++)
@@ -655,7 +757,8 @@ public partial class FluidSim : Node2D
             {
                 for (int row = 0; row <= NRows; row++)
                 {
-                    vectorGrid[col][row].Value = updatedVelocities[col][row];
+                    object raw = updatedVelocities[col][row];
+                    vectorGrid[col][row].SetValue(raw);
                 }
             }
         }
@@ -695,7 +798,7 @@ public partial class FluidSim : Node2D
         else if (SimulationType == FluidSimType.EdgeBased)
             this._fluidSim = new FluidEdgeSim(NCols, NRows, viscosity, timeStep, density, cellSize, MaxVelocity);
         else if (SimulationType == FluidSimType.HexEdgeBased)
-            this._fluidSim = new HexaFluidSimBaseClass(NCols, NRows, viscosity, timeStep, density, cellSize, MaxVelocity);
+            this._fluidSim = new HexaFluidEdgeSim(NCols, NRows, viscosity, timeStep, density, cellSize, MaxVelocity);
         else
         {
             GD.PrintErr("Unknown SimulationType: ", SimulationType);
@@ -736,8 +839,8 @@ public partial class FluidSim : Node2D
         Vector2 gridSize = new Vector2(xLength, yLength);
         Vector2 gridOffset = (areaSize - gridSize) / 2;
 
-        float[][] pressureMap = _fluidSim.pressureGrid;
-        var velocityMap = _fluidSim.velocityGrid;
+        float[][] pressureMap = _fluidSim.GetPressureGrid();
+        object[][] velocityMap = _fluidSim.GetVelocityGridAsObjects();
 
         GD.Print("Velocity map ", velocityMap, " pressure grid ", pressureMap);
         tileGrid = new DisplayTile[pressureMap.Length][];
@@ -762,17 +865,12 @@ public partial class FluidSim : Node2D
                 tileInstance.UpdateColor(pressure);
             }
         }
-
-        if(SimulationType == FluidSimType.HexEdgeBased)
-        {
-            return;
-        }
         for (int i = 0; i < velocityMap.Length; i++)
         {
             vectorGrid[i] = new DisplayVector[velocityMap[i].Length];
             for (int j = 0; j < velocityMap[i].Length; j++)
             {
-                Vector2 velocity = velocityMap[i][j];
+                object rawVel = velocityMap[i][j];
                 DisplayVector vectorInstance = VectorScene.Instantiate<DisplayVector>();
                 if (vectorInstance is not DisplayVector)
                 {
@@ -783,7 +881,8 @@ public partial class FluidSim : Node2D
                 displayVector.col_index = i;
                 displayVector.row_index = j;
 
-                displayVector.Value = velocity;
+                //displayVector.Value = velocity;
+                displayVector.SetValue(rawVel);
                 displayVector.OnVectorChanged = setCornerVelocityCallback;
                 vectorGrid[i][j] = displayVector;
                 AddChild(vectorInstance);

@@ -43,10 +43,19 @@ public partial class DisplayTile : Node2D
     }
 
 
-    public Vector2 getPolygonSize(Polygon2D polygon)
+    public Vector2 GetPolygonSize(Polygon2D polygon)
     {
         if (polygon != null)
         {
+            if (polygon.Polygon.Length == 0)
+            {
+                return Vector2.Zero;
+            }
+            else if (polygon.Polygon.Length == 6)
+            {
+                return GetHexagonSize();
+            }
+
             //Get the bounding box of the polygon
             Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
             Vector2 max = new Vector2(float.MinValue, float.MinValue);
@@ -57,6 +66,7 @@ public partial class DisplayTile : Node2D
                 if (point.X > max.X) max.X = point.X;
                 if (point.Y > max.Y) max.Y = point.Y;
             }
+            GD.Print("Polygon Size: ", (max - min), " Scale: ", polygon.Scale);
             return (max - min) * polygon.Scale;
         }
         else
@@ -64,6 +74,24 @@ public partial class DisplayTile : Node2D
             return Vector2.Zero;
         }
     }
+
+    public Vector2 GetHexagonSize()
+    {
+        GD.Print("Getting Hexagon Size, MyColorRect: ", MyColorRect, " MyPolygon: ", MyPolygon);
+        if (MyPolygon != null)
+        {
+            
+            float width = MyPolygon.Scale.X * (MyPolygon.Polygon[1].X - MyPolygon.Polygon[5].X);
+            float height = MyPolygon.Scale.Y * (MyPolygon.Polygon[2].Y - MyPolygon.Polygon[1].Y);
+            float tipHeight = MyPolygon.Scale.Y * (MyPolygon.Polygon[1].Y - MyPolygon.Polygon[0].Y);
+            height += tipHeight; //Add the top and bottom tips
+
+            GD.Print("Polygon Size: ", new Vector2(width, height), " Scale: ", MyPolygon.Scale);
+            return new Vector2(width, height);
+        }
+        throw new NotImplementedException();
+    }
+
 
     public Vector2 GetTileSize()
     {   
@@ -75,7 +103,7 @@ public partial class DisplayTile : Node2D
         else if (MyPolygon != null)
         {
             //Get the bounding box of the polygon
-            Vector2 bbox = getPolygonSize(MyPolygon);
+            Vector2 bbox = GetPolygonSize(MyPolygon);
             return bbox;
         }
         else

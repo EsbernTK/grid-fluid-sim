@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://dsfsn15vsny4h"]
 
 [ext_resource type="Script" uid="uid://0iod51tfvrt5" path="res://FluidSim.cs" id="1_h2yge"]
-[ext_resource type="PackedScene" uid="uid://c5ydlecfqa3to" path="res://tile.tscn" id="2_0xm2m"]
+[ext_resource type="PackedScene" uid="uid://6xpenqu0iuid" path="res://hexagon.tscn" id="2_h2yge"]
 [ext_resource type="PackedScene" uid="uid://d3fe8sf2ju458" path="res://displayVector.tscn" id="3_h2yge"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_0xm2m"]
@@ -9,11 +9,12 @@ size = Vector2(1151, 649)
 
 [node name="Node2D" type="Node2D"]
 script = ExtResource("1_h2yge")
-TileScene = ExtResource("2_0xm2m")
+TileScene = ExtResource("2_h2yge")
 VectorScene = ExtResource("3_h2yge")
 SimulationStepsPerFrame = 1
-NCols = 20
-NRows = 15
+SimulationType = 2
+NCols = 3
+NRows = 3
 
 [node name="FluidArea" type="Area2D" parent="."]
 
