@@ -215,7 +215,7 @@ public class FluidSimBaseClass<T> : FluidSimBase
 
     public virtual float UpdatePressure(int col, int row)
     {
-        GD.Print("Updating pressure at Tile, BaseClass (", col, ",", row, ")");
+        //GD.Print("Updating pressure at Tile, BaseClass (", col, ",", row, ")");
         return GetPressureSafe(col, row);
     }
 
@@ -738,7 +738,7 @@ public partial class FluidSim : Node2D
         if (UpdatePressures)
         {
             float[][] updatedPressure = _fluidSim.UpdatePressureMap();
-            GD.Print("Updated pressure map: ", updatedPressure);
+            //GD.Print("Updated pressure map: ", updatedPressure);
             for (int col = 0; col < NCols; col++)
             {
                 for (int row = 0; row < NRows; row++)

@@ -182,20 +182,29 @@ public class HexaFluidSimBaseClass : FluidSimBaseClass<Vector3>
         Vector2 rightVector = new Vector2(1, 0);
         Vector2 leftVector = rightVector;//new Vector2(-1, 0);
 
+        Vector2 diagonalVector = new Vector2(cos60, sin60);
+
 
         //The velocity vectors at the top edge will have a positive component if the flow is going out of the cell (upwards)
         //The velocity vectors at the bottom edge will have a positive component if the flow is going out of the cell (downwards)
         //The velocity vectors at the left edge will have a positive component if the flow is going out of the cell (to the left)
         //The velocity vectors at the right edge will have a positive component if the flow is going into the cell (to the left)
 
-        edgeVelocities[0] = topVelocity.X * topLeftVector; // Top-Left
-        edgeVelocities[1] = topVelocity.Z * topRightVector; // Top-Right
-        edgeVelocities[2] = bottomRightVelocity.Y * rightVector; // Right
-        edgeVelocities[3] = bottomRightVelocity.X * bottomRightVector; // Bottom-Right
-        edgeVelocities[4] = bottomLeftVelocity.Z * bottomLeftVector; // Bottom-Left
-        edgeVelocities[5] = bottomLeftVelocity.Y * leftVector; // Left
+        //edgeVelocities[0] = topVelocity.X * topLeftVector; // Top-Left
+        //edgeVelocities[1] = topVelocity.Z * topRightVector; // Top-Right
+        //edgeVelocities[2] = bottomRightVelocity.Y * rightVector; // Right
+        //edgeVelocities[3] = bottomRightVelocity.X * bottomRightVector; // Bottom-Right
+        //edgeVelocities[4] = bottomLeftVelocity.Z * bottomLeftVector; // Bottom-Left
+        //edgeVelocities[5] = bottomLeftVelocity.Y * leftVector; // Left
 
-        GD.Print("Tile (", col, ",", row, ") Edge Velocities: ", Vector2ArrayToString(edgeVelocities));
+        edgeVelocities[0] = topVelocity.X * -1 * diagonalVector; // Top-Left
+        edgeVelocities[1] = topVelocity.Z * -1 * diagonalVector; // Top-Right
+        edgeVelocities[2] = bottomRightVelocity.Y * rightVector; // Right
+        edgeVelocities[3] = bottomRightVelocity.X * diagonalVector; // Bottom-Right
+        edgeVelocities[4] = bottomLeftVelocity.Z * diagonalVector; // Bottom-Left
+        edgeVelocities[5] = bottomLeftVelocity.Y * -1 * leftVector; // Left
+
+        //GD.Print("Tile (", col, ",", row, ") Edge Velocities: ", Vector2ArrayToString(edgeVelocities));
         return edgeVelocities;
     }
 
@@ -231,7 +240,7 @@ class HexaFluidEdgeSim : HexaFluidSimBaseClass
         //Calculate divergence
         float divergence = velocitySum.X + velocitySum.Y;
         float pressure = (pressureSum - density * cellSize * divergence / timeStep) / 6f;
-        GD.Print("Calculated Pressure at Tile (", col, ",", row, "): ", pressure, " from Divergence: ", divergence, " and Pressure Sum: ", pressureSum);
+        //GD.Print("Calculated Pressure at Tile (", col, ",", row, "): ", pressure, " from Divergence: ", divergence, " and Pressure Sum: ", pressureSum);
         return pressure;
     }
 
@@ -263,7 +272,7 @@ class HexaFluidEdgeSim : HexaFluidSimBaseClass
 
     public override float UpdatePressure(int col, int row)
     {
-        GD.Print("Updating pressure at Tile (", col, ",", row, ")");
+        //GD.Print("Updating pressure at Tile (", col, ",", row, ")");
         return GetPressureAtTile(col, row);
     }
 
