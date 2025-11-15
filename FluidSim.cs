@@ -12,6 +12,9 @@ public abstract class FluidSimBase
     // Returns the internal pressure grid (float[][])
     public abstract float[][] GetPressureGrid();
 
+    // Returns the internal pressure grid (float[][])
+    public abstract float[][] GetDivergenceGrid();
+
     // Returns the internal velocity grid as object[][] where each entry is boxed Vector2 or Vector3
     public abstract object[][] GetVelocityGridAsObjects();
 
@@ -34,6 +37,7 @@ public class FluidSimBaseClass<T> : FluidSimBase
     public T[][] tempVelocityGrid;
     public float[][] pressureGrid;
     public float[][] tempPressureGrid;
+    public float[][] divergenceGrid;
 
     public float viscosity = 0.1f;
     public float timeStep = 1f / 60f;
@@ -64,6 +68,7 @@ public class FluidSimBaseClass<T> : FluidSimBase
         tempVelocityGrid = new T[nCols + 1][];
         pressureGrid = new float[nCols][];
         tempPressureGrid = new float[nCols][];
+        divergenceGrid = new float[nCols][];
         for (int i = 0; i <= nCols; i++)
         {
             velocityGrid[i] = new T[nRows + 1];
@@ -72,6 +77,7 @@ public class FluidSimBaseClass<T> : FluidSimBase
             {
                 pressureGrid[i] = new float[nRows];
                 tempPressureGrid[i] = new float[nRows];
+                divergenceGrid[i] = new float[nRows];
             }
             for (int j = 0; j <= nRows; j++)
             {
@@ -88,6 +94,7 @@ public class FluidSimBaseClass<T> : FluidSimBase
                 {
                     pressureGrid[i][j] = 0f;
                     tempPressureGrid[i][j] = 0f;
+                    divergenceGrid[i][j] = 0f;
                 }
             }
         }
@@ -306,6 +313,11 @@ public class FluidSimBaseClass<T> : FluidSimBase
         return pressureGrid;
     }
 
+    public override float[][] GetDivergenceGrid()
+    {
+        return divergenceGrid;
+    }
+
 
 
 }
@@ -363,6 +375,7 @@ public class FluidCornerSim : SquareFluidSimBaseClass
 
 
         float divergence = dx + dy;
+        divergenceGrid[col][row] = divergence;
 
         float pTopLeft = GetPressureSafe(col - 1, row - 1);
         float pTopMiddle = GetPressureSafe(col, row - 1);
@@ -539,6 +552,7 @@ public class FluidEdgeSim : SquareFluidSimBaseClass
 
         float pressureSum = pressureTop + pressureBottom + pressureLeft + pressureRight;
         float divergence = dx + dy;
+        divergenceGrid[col][row] = divergence;
 
         float pressure = (pressureSum - density * cellSize * divergence / timeStep) / 4f;
         return pressure;
@@ -585,6 +599,12 @@ public enum FluidSimType
     CornerBased,
     EdgeBased,
     HexEdgeBased
+}
+
+public enum FluidPropertyDisplayType
+{
+    Pressure,
+    Divergence
 }
 
 
@@ -652,7 +672,8 @@ public partial class FluidSim : Node2D
     //}
     
     private FluidSimType _simulationType = FluidSimType.EdgeBased;
-    [Export] public FluidSimType SimulationType 
+    [Export]
+    public FluidSimType SimulationType
     {
         get => _simulationType;
         set
@@ -660,6 +681,19 @@ public partial class FluidSim : Node2D
             _simulationType = value;
             CreateBoard();
             //StepSimulation = true;
+        }
+    }
+
+    private FluidPropertyDisplayType _propertyDisplayType = FluidPropertyDisplayType.Pressure;
+    [Export]
+    public FluidPropertyDisplayType PropertyDisplayType
+    {
+        get => _propertyDisplayType;
+        set
+        {
+            _propertyDisplayType = value;
+            UpdateDisplay();
+
         }
     }
 
@@ -732,20 +766,61 @@ public partial class FluidSim : Node2D
         _Process(0);
     }
 
+
+    public void UpdateDisplay()
+    {
+        float[][] updatedValues;
+        if (PropertyDisplayType == FluidPropertyDisplayType.Pressure)
+        {
+            updatedValues = _fluidSim.GetPressureGrid();
+        }
+        else //Divergence
+        {
+            updatedValues = _fluidSim.GetDivergenceGrid();
+        }
+
+        for (int col = 0; col < NCols; col++)
+        {
+            for (int row = 0; row < NRows; row++)
+            {
+                tileGrid[col][row].UpdateColor(updatedValues[col][row]);
+            }
+        }
+
+        var updatedVelocities = _fluidSim.GetVelocityGridAsObjects();
+        for (int col = 0; col <= NCols; col++)
+        {
+            for (int row = 0; row <= NRows; row++)
+            {
+                object raw = updatedVelocities[col][row];
+                vectorGrid[col][row].SetValue(raw);
+            }
+        }
+
+
+
+    }
+
     public void Simulate()
     {   
         
         if (UpdatePressures)
         {
-            float[][] updatedPressure = _fluidSim.UpdatePressureMap();
+            for (int i = 0; i < SimulationStepsPerFrame; i++)
+            {
+                _fluidSim.UpdatePressureMap();
+            }
+            //float[][] updatedValues = _fluidSim.UpdatePressureMap();
             //GD.Print("Updated pressure map: ", updatedPressure);
+            /*
             for (int col = 0; col < NCols; col++)
             {
                 for (int row = 0; row < NRows; row++)
                 {
-                    tileGrid[col][row].UpdateColor(updatedPressure[col][row]);
+                    tileGrid[col][row].UpdateColor(updatedValues[col][row]);
                 }
             }
+            */
 
 
         }
@@ -753,6 +828,7 @@ public partial class FluidSim : Node2D
         if (UpdateVelocities)
         {
             var updatedVelocities = _fluidSim.UpdateAndGetVelocityMap();
+            /*
             for (int col = 0; col <= NCols; col++)
             {
                 for (int row = 0; row <= NRows; row++)
@@ -761,8 +837,9 @@ public partial class FluidSim : Node2D
                     vectorGrid[col][row].SetValue(raw);
                 }
             }
+            */
         }
-
+        UpdateDisplay();
     }
 
 
@@ -774,10 +851,13 @@ public partial class FluidSim : Node2D
             if (Engine.IsEditorHint())
                 _stepSimulation = false;
 
+            /*
             for (int i = 0; i < SimulationStepsPerFrame; i++)
             {
                 Simulate();
             }
+            */
+            Simulate();
         }
     }
 

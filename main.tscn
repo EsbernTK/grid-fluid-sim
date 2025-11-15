@@ -11,7 +11,6 @@ size = Vector2(1151, 649)
 script = ExtResource("1_h2yge")
 TileScene = ExtResource("2_h2yge")
 VectorScene = ExtResource("3_h2yge")
-SimulationStepsPerFrame = 1
 SimulationType = 2
 NRows = 11
 

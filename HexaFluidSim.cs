@@ -239,6 +239,10 @@ class HexaFluidEdgeSim : HexaFluidSimBaseClass
 
         //Calculate divergence
         float divergence = velocitySum.X + velocitySum.Y;
+        //For now we just update the divergence grid here
+        divergenceGrid[col][row] = divergence;
+
+
         float pressure = (pressureSum - density * cellSize * divergence / timeStep) / 6f;
         //GD.Print("Calculated Pressure at Tile (", col, ",", row, "): ", pressure, " from Divergence: ", divergence, " and Pressure Sum: ", pressureSum);
         return pressure;
