@@ -5,6 +5,14 @@
 [node name="Hexagon" type="Node2D"]
 script = ExtResource("1_bt7cu")
 NeutralColor = Color(0.165656, 0.165656, 0.165656, 1)
+HighlightColor = Color(0.851099, 0.199861, 0.767054, 1)
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Area2D"]
+position = Vector2(1.90735e-06, 30)
+scale = Vector2(30, 30)
+polygon = PackedVector2Array(0, -1, 0.866, -0.5, 0.866, 0.5, 0, 1, -0.866, 0.5, -0.866, -0.5)
 
 [node name="Polygon2D" type="Polygon2D" parent="."]
 position = Vector2(1.90735e-06, 30)
@@ -24,8 +32,13 @@ offset_right = 16.0
 offset_bottom = 47.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 1
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[connection signal="input_event" from="Area2D" to="." method="_on_area_2d_input_event"]
+[connection signal="mouse_entered" from="Area2D" to="." method="_on_area_2d_mouse_entered"]
+[connection signal="mouse_exited" from="Area2D" to="." method="_on_area_2d_mouse_exited"]

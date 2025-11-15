@@ -11,8 +11,11 @@ size = Vector2(1151, 649)
 script = ExtResource("1_h2yge")
 TileScene = ExtResource("2_h2yge")
 VectorScene = ExtResource("3_h2yge")
+SimulationStepsPerFrame = 1
 SimulationType = 2
-NRows = 11
+LeftClickAction = 0
+NCols = 20
+NRows = 13
 
 [node name="FluidArea" type="Area2D" parent="."]
 

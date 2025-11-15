@@ -12,14 +12,25 @@ public partial class DisplayTile : Node2D
     [Export] public Color NeutralColor { get; set; } = new Color(1, 1, 1);
     [Export] public Color PositiveColor { get; set; } = new Color(1, 0, 0);
 
+    [Export] public Color HighlightColor { get; set; } = new Color(1, 0, 0);
+
+
     [Export] public float MinPressure { get; set; } = -10f;
     [Export] public float MaxPressure { get; set; } = 10f;
+
+    public bool showPressure = true;
 
     ColorRect MyColorRect => GetNodeOrNull<ColorRect>("ColorRect");
     Polygon2D MyPolygon => GetNodeOrNull<Polygon2D>("Polygon2D");
 
     RichTextLabel Label => GetNode<RichTextLabel>("RichTextLabel");
 
+    FluidSim fluidSim => GetParent<FluidSim>();
+
+    public Action<DisplayTile> OnEnterCallback;
+    public Action<DisplayTile> OnExitCallback;
+
+    public Action<DisplayTile> OnClickedCallback;
 
     public override void _Ready()
     {
@@ -80,7 +91,7 @@ public partial class DisplayTile : Node2D
         //GD.Print("Getting Hexagon Size, MyColorRect: ", MyColorRect, " MyPolygon: ", MyPolygon);
         if (MyPolygon != null)
         {
-            
+
             float width = MyPolygon.Scale.X * (MyPolygon.Polygon[1].X - MyPolygon.Polygon[5].X);
             float height = MyPolygon.Scale.Y * (MyPolygon.Polygon[2].Y - MyPolygon.Polygon[1].Y);
             float tipHeight = MyPolygon.Scale.Y * (MyPolygon.Polygon[1].Y - MyPolygon.Polygon[0].Y);
@@ -92,6 +103,15 @@ public partial class DisplayTile : Node2D
         throw new NotImplementedException();
     }
 
+    public void Highlight()
+    {
+        UpdateColor(HighlightColor);
+    }
+
+    public void Unhighlight()
+    {
+        UpdateColor(NeutralColor);
+    }
 
     public Vector2 GetTileSize()
     {
@@ -112,46 +132,90 @@ public partial class DisplayTile : Node2D
         }
     }
 
+
+    public void UpdateColor( Color color )
+    {
+        if (MyPolygon != null)
+        {
+            MyPolygon.Color = color;
+        }
+        if (MyColorRect != null)
+        {
+            MyColorRect.Color = color;
+        }
+    }
+
     public void UpdateColor(float pressure)
     {
-
+        if (!showPressure)
+        {
+            Label.Text = "";
+            return;
+        }
 
         Label.Text = "[font_size=10] " + pressure.ToString("F2") + " [/font_size]";
-        
+
         if (pressure < 0)
         {
             //Map pressure to a color between NeutralColor and NegativeColor
             float t = pressure / MinPressure;
             t = Mathf.Clamp(t, 0f, 1f);
             Color color = NeutralColor + (NegativeColor - NeutralColor) * t;
-            if (MyPolygon != null)
-            {
-                MyPolygon.Color = color;
-            }
-            if (MyColorRect != null)
-            {
-                MyColorRect.Color = color;
-            }
+            UpdateColor(color);
             return;
         }
 
-        if (pressure > 0)
+        else if (pressure > 0)
         {
             //Map pressure to a color between NeutralColor and PositiveColor
             float t = pressure / MaxPressure;
             t = Mathf.Clamp(t, 0f, 1f);
             Color color = NeutralColor + (PositiveColor - NeutralColor) * t;
-            if (MyPolygon != null)
-            {
-                MyPolygon.Color = color;
-            }
-            if (MyColorRect != null)
-            {
-                MyColorRect.Color = color;
-            }
+            UpdateColor(color);
+            return;
+        }
+        
+        else
+        {
+            UpdateColor(NeutralColor);
             return;
         }
     }
 
 
+    public void _on_area_2d_input_event(Node viewport, InputEvent @event, int shape_idx)
+    {
+        //GD.Print("Input event on Tile (", Col, ",", Row, ")");
+        if (@event is InputEventMouseButton mouseEvent)
+        {
+            if (mouseEvent.ButtonIndex == MouseButton.Left && mouseEvent.Pressed)
+            {
+                GD.Print("Tile (", Col, ",", Row, ") clicked");
+                if (OnClickedCallback != null)
+                {
+                    OnClickedCallback(this);
+                }
+            }
+        }
+
+    }
+
+    public void _on_area_2d_mouse_entered()
+    {
+        GD.Print("Mouse entered Tile (", Col, ",", Row, ")");
+        //showPressure = false;
+        if(OnEnterCallback != null)
+        {
+            OnEnterCallback(this);
+        }
+    }
+    public void _on_area_2d_mouse_exited()
+    {
+        GD.Print("Mouse exited Tile (", Col, ",", Row, ")");
+        //showPressure = true;
+        if (OnExitCallback != null)
+        {
+            OnExitCallback(this);
+        }
+    }
 }

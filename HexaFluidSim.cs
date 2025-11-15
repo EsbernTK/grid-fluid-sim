@@ -97,7 +97,7 @@ public class HexaFluidSimBaseClass : FluidSimBaseClass<Vector3>
         return vel;
     }
 
-    public virtual int[][] GetNeighbourTileInds(int col, int row)
+    public override int[][] GetNeighbourTileInds(int col, int row)
     {
         //Returns the column and row indices of the 6 surrounding tiles in a hex grid
         //The order is: Top-Left, Top-Right, Right, Bottom-Right, Bottom-Left, Left

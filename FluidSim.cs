@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Net;
+using System.Xml.Serialization;
 
 public abstract class FluidSimBase
 {
@@ -12,11 +13,19 @@ public abstract class FluidSimBase
     // Returns the internal pressure grid (float[][])
     public abstract float[][] GetPressureGrid();
 
+    
+    // Returns the internal pressure grid (float[][])
+    public abstract void SetPressureAtIndex(int col, int row, float pressure);
+
     // Returns the internal pressure grid (float[][])
     public abstract float[][] GetDivergenceGrid();
 
     // Returns the internal velocity grid as object[][] where each entry is boxed Vector2 or Vector3
     public abstract object[][] GetVelocityGridAsObjects();
+
+    public abstract void SetVelocityAtIndex(int col, int row, object velocity);
+
+    public abstract int[][] GetNeighbourTileInds(int col, int row);
 
     // Update pressure grid and return it (same as original signature)
     public abstract float[][] UpdatePressureMap();
@@ -28,6 +37,10 @@ public abstract class FluidSimBase
     public abstract Vector2 GetTileUV(int col, int row);
 
     public abstract void RandomizeGrid();
+
+    public abstract void ZeroGrid();
+
+    public abstract object GetRandomVelocityObject();
 }
 
 
@@ -60,6 +73,20 @@ public class FluidSimBaseClass<T> : FluidSimBase
         this.nRows = n_rows;
         CreateGrid();
     }
+
+
+    public override int[][] GetNeighbourTileInds(int col, int row)
+    {
+        //Returns the column and row indices of the 6 surrounding tiles in a hex grid
+        //The order is: Top, Left, Bottom, right
+        int[][] neighbours = new int[4][];
+        neighbours[0] = new int[] { col, row - 1 }; // Top
+        neighbours[1] = new int[] { col - 1, row }; // Left
+        neighbours[2] = new int[] { col, row + 1 }; // Bottom
+        neighbours[3] = new int[] { col + 1, row }; // Right
+        return neighbours;
+    }
+
 
     public virtual void CreateGrid()
     {
@@ -146,6 +173,31 @@ public class FluidSimBaseClass<T> : FluidSimBase
         }
     }
 
+    public virtual void ResetGrid()
+    {
+        for (int i = 0; i <= nCols; i++)
+        {
+            for (int j = 0; j <= nRows; j++)
+            {
+                velocityGrid[i][j] = getZeroVector();
+            }
+        }
+        for (int i = 0; i < nCols; i++)
+        {
+            for (int j = 0; j < nRows; j++)
+            {
+                pressureGrid[i][j] = 0f;
+                divergenceGrid[i][j] = 0f;
+            }
+        }
+
+    }
+
+    public override void ZeroGrid()
+    {
+        ResetGrid();
+    }
+
     public override void RandomizeGrid()
     {
         RandomizeVelocityGrid();
@@ -189,6 +241,11 @@ public class FluidSimBaseClass<T> : FluidSimBase
         {
             throw new NotImplementedException("GetRandomVelocity not implemented for type " + typeof(T).ToString());
         }
+    }
+
+    public override object GetRandomVelocityObject()
+    {
+        return (object)GetRandomVelocityObject();
     }
 
     //Simulation methods would go here
@@ -318,6 +375,29 @@ public class FluidSimBaseClass<T> : FluidSimBase
         return divergenceGrid;
     }
 
+    public override void SetPressureAtIndex(int col, int row, float pressure)
+    {
+        if (IsTileValid(col, row))
+        {
+            GD.Print("Setting pressure at index (", col, ",", row, ") to ", pressure);
+            pressureGrid[col][row] = pressure;
+        }
+    }
+
+    public override void SetVelocityAtIndex(int col, int row, object velocity)
+    {
+        if (IsCornerValid(col, row))
+        {
+            if (velocity is T typedVelocity)
+            {
+                velocityGrid[col][row] = typedVelocity;
+            }
+            else
+            {
+                throw new ArgumentException("Invalid velocity type for SetVelocityAtIndex");
+            }
+        }
+    }
 
 
 }
@@ -552,7 +632,6 @@ public class FluidEdgeSim : SquareFluidSimBaseClass
 
         float pressureSum = pressureTop + pressureBottom + pressureLeft + pressureRight;
         float divergence = dx + dy;
-        divergenceGrid[col][row] = divergence;
 
         float pressure = (pressureSum - density * cellSize * divergence / timeStep) / 4f;
         return pressure;
@@ -604,9 +683,23 @@ public enum FluidSimType
 public enum FluidPropertyDisplayType
 {
     Pressure,
-    Divergence
+    Divergence,
+    Neighbours
 }
 
+public enum FluidVectorDisplayType
+{
+    Node,
+    Edge,
+    None
+}
+
+public enum MouseClickMode
+{
+    SetVelocity,
+    SetPressure,
+    None
+}
 
 [Tool]
 public partial class FluidSim : Node2D
@@ -640,7 +733,7 @@ public partial class FluidSim : Node2D
         set
         {
             _randomizeSimulation = false;
-            if(this._fluidSim == null)
+            if (this._fluidSim == null)
             {
                 GD.PrintErr("FluidSim is null, cannot randomize.");
                 return;
@@ -650,13 +743,30 @@ public partial class FluidSim : Node2D
         }
     }
 
+    private bool _zeroSimulation;
+    [Export]
+    public bool ZeroSimulation
+    {
+        get => _zeroSimulation;
+        set
+        {
+            _zeroSimulation = false;
+            if (this._fluidSim == null)
+            {
+                GD.PrintErr("FluidSim is null, cannot zero.");
+                return;
+            }
+            this._fluidSim.ZeroGrid();
+            UpdateDisplay();
+        }
+    }
+
 
     [Export] public int SimulationStepsPerFrame { get; set; } = 10;
     [Export] public bool UpdateVelocities { get; set; } = true;
     [Export] public bool UpdatePressures { get; set; } = true;
 
     [Export] public bool SimulateInEditor { get; set; } = true;
-
     //private bool _simulateAtCorners;
     //Make a button in the UI to calculate the next step
     //[Export]
@@ -696,6 +806,8 @@ public partial class FluidSim : Node2D
 
         }
     }
+
+    [Export] public MouseClickMode LeftClickAction { get; set; } = MouseClickMode.None;
 
 
 
@@ -769,24 +881,6 @@ public partial class FluidSim : Node2D
 
     public void UpdateDisplay()
     {
-        float[][] updatedValues;
-        if (PropertyDisplayType == FluidPropertyDisplayType.Pressure)
-        {
-            updatedValues = _fluidSim.GetPressureGrid();
-        }
-        else //Divergence
-        {
-            updatedValues = _fluidSim.GetDivergenceGrid();
-        }
-
-        for (int col = 0; col < NCols; col++)
-        {
-            for (int row = 0; row < NRows; row++)
-            {
-                tileGrid[col][row].UpdateColor(updatedValues[col][row]);
-            }
-        }
-
         var updatedVelocities = _fluidSim.GetVelocityGridAsObjects();
         for (int col = 0; col <= NCols; col++)
         {
@@ -797,8 +891,26 @@ public partial class FluidSim : Node2D
             }
         }
 
-
-
+        float[][] updatedValues;
+        if (PropertyDisplayType == FluidPropertyDisplayType.Pressure)
+        {
+            updatedValues = _fluidSim.GetPressureGrid();
+        }
+        else if (PropertyDisplayType == FluidPropertyDisplayType.Divergence)
+        {
+            updatedValues = _fluidSim.GetDivergenceGrid();
+        }
+        else
+        {
+            return;
+        }
+        for (int col = 0; col < NCols; col++)
+        {
+            for (int row = 0; row < NRows; row++)
+            {
+                tileGrid[col][row].UpdateColor(updatedValues[col][row]);
+            }
+        }
     }
 
     public void Simulate()
@@ -858,6 +970,69 @@ public partial class FluidSim : Node2D
             }
             */
             Simulate();
+        }
+    }
+
+    private void OnDisplayTileEntered(DisplayTile tile)
+    {
+        if (PropertyDisplayType == FluidPropertyDisplayType.Neighbours)
+        {
+            tile.Highlight();
+            int col = tile.Col;
+            int row = tile.Row;
+            int[][] neighbours = _fluidSim.GetNeighbourTileInds(col, row);
+            foreach (int[] neighbour in neighbours)
+            {
+                int nCol = neighbour[0];
+                int nRow = neighbour[1];
+                if (nCol >= 0 && nCol < NCols && nRow >= 0 && nRow < NRows)
+                {
+                    DisplayTile neighbourTile = tileGrid[nCol][nRow];
+                    neighbourTile.Highlight();
+                }
+            }
+        }
+    }
+
+    private void OnDisplayTileExited(DisplayTile tile)
+    {
+        if (PropertyDisplayType == FluidPropertyDisplayType.Neighbours)
+        {
+            tile.Unhighlight();
+            int col = tile.Col;
+            int row = tile.Row;
+            int[][] neighbours = _fluidSim.GetNeighbourTileInds(col, row);
+            foreach (int[] neighbour in neighbours)
+            {
+                int nCol = neighbour[0];
+                int nRow = neighbour[1];
+                if (nCol >= 0 && nCol < NCols && nRow >= 0 && nRow < NRows)
+                {
+                    DisplayTile neighbourTile = tileGrid[nCol][nRow];
+                    neighbourTile.Unhighlight();
+                }
+            }
+        }
+    }
+    
+    private void OnDisplayTileClicked(DisplayTile tile)
+    {
+        int col = tile.Col;
+        int row = tile.Row;
+        if (LeftClickAction == MouseClickMode.SetPressure)
+        {
+            //Set the pressure at this tile to a random value
+            float newPressure = (float)GD.RandRange(-100, 100) / 100 * 10f;
+            _fluidSim.SetPressureAtIndex(col, row, newPressure);
+            UpdateDisplay();
+        }
+
+        if (LeftClickAction == MouseClickMode.SetVelocity)
+        {
+            //Set the pressure at this tile to a random value
+            object newVelocity = _fluidSim.GetRandomVelocityObject();
+            _fluidSim.SetVelocityAtIndex(col, row, newVelocity);
+            UpdateDisplay();
         }
     }
 
@@ -943,6 +1118,11 @@ public partial class FluidSim : Node2D
                 //Set the tile's fluid property to this
                 float pressure = pressureMap[col][row];
                 tileInstance.UpdateColor(pressure);
+                tileInstance.Col = col;
+                tileInstance.Row = row;
+                tileInstance.OnEnterCallback = OnDisplayTileEntered;
+                tileInstance.OnExitCallback = OnDisplayTileExited;
+                tileInstance.OnClickedCallback = OnDisplayTileClicked;
             }
         }
         for (int i = 0; i < velocityMap.Length; i++)
