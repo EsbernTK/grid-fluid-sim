@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://d01blmsnawylc"]
+
+[ext_resource type="Script" uid="uid://deftwocoi6m0e" path="res://TrippleDisplayVector.cs" id="1_yh6hu"]
+[ext_resource type="PackedScene" uid="uid://d3fe8sf2ju458" path="res://displayVector.tscn" id="2_eh8xl"]
+
+[node name="TrippleDisplayVectorObject" type="Node2D"]
+script = ExtResource("1_yh6hu")
+VectorScene = ExtResource("2_eh8xl")
+Value = Vector3(0, 0, 0)
+degreesOffset = 30.0
+Value = Vector3(0, 0, 0)
+ArrowSize = 4.0
+OriginDotRadius = 2.0

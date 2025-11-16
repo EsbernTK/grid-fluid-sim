@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://0iod51tfvrt5" path="res://FluidSim.cs" id="1_h2yge"]
 [ext_resource type="PackedScene" uid="uid://6xpenqu0iuid" path="res://hexagon.tscn" id="2_h2yge"]
-[ext_resource type="PackedScene" uid="uid://d3fe8sf2ju458" path="res://displayVector.tscn" id="3_h2yge"]
+[ext_resource type="PackedScene" uid="uid://d01blmsnawylc" path="res://trippleDisplayVector.tscn" id="3_h2yge"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_0xm2m"]
 size = Vector2(1151, 649)
@@ -11,11 +11,11 @@ size = Vector2(1151, 649)
 script = ExtResource("1_h2yge")
 TileScene = ExtResource("2_h2yge")
 VectorScene = ExtResource("3_h2yge")
-SimulationStepsPerFrame = 1
+SimulationStepsPerFrame = 30
 SimulationType = 2
-LeftClickAction = 0
+LeftClickAction = 1
 NCols = 20
-NRows = 13
+MaxVelocity = 24.0
 
 [node name="FluidArea" type="Area2D" parent="."]
 

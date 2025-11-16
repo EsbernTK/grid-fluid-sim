@@ -4,6 +4,8 @@ using System;
 public partial class DisplayVector : Node2D
 {
     // Vector endpoint in local space (origin is this node's position)
+    public Vector2 BaseValue = new Vector2(0, 0);
+
     private Vector2 _value = new(0, 0);
     [Export]
     public Vector2 Value
@@ -47,10 +49,15 @@ public partial class DisplayVector : Node2D
 
     public override void _Draw()
     {
-        var dir = Value.Normalized();
+        DrawArrow(Vector2.Zero, Value);
+    }
+
+    public void DrawArrow(Vector2 from, Vector2 to)
+    {
+        var dir = (to - from).Normalized();
 
         // Line from (0,0) to vector
-        DrawLine(Vector2.Zero, Value - dir * ArrowSize, Color, Thickness, antialiased: true);
+        DrawLine(from, to - dir * ArrowSize, Color, Thickness, antialiased: true);
         // Draw a triangle at the end of the line to represent the arrowhead
 
         if (ShowArrowhead && Value.Length() > 0.01f)
@@ -63,23 +70,22 @@ public partial class DisplayVector : Node2D
         }
 
         if (ShowOriginDot)
-            DrawCircle(Vector2.Zero, OriginDotRadius, Color);
-
+            DrawCircle(from, OriginDotRadius, Color);
     }
 
-    public void SetValue(Vector2 newValue)
+    public virtual void SetValue(Vector2 newValue)
     {
         Value = newValue;
         QueueRedraw();
     }
 
-    public void SetValue(float x, float y)
+    public virtual void SetValue(float x, float y)
     {
         Value = new Vector2(x, y);
         QueueRedraw();
     }
 
-    public void SetValue(Vector3 newValue)
+    public virtual void SetValue(Vector3 newValue)
     {
         Value = new Vector2(newValue.X, newValue.Y);
         QueueRedraw();
@@ -90,16 +96,21 @@ public partial class DisplayVector : Node2D
         switch (newValue)
         {
             case Vector2 v2:
-                Value = v2;
+                SetValue(v2);
                 break;
             case Vector3 v3:
-                Value = new Vector2(v3.X, v3.Y);
+                SetValue(v3);
                 break;
             default:
                 GD.PrintErr("Unsupported type for SetValue: ", newValue.GetType());
                 break;
         }
-        QueueRedraw();
+    }
+
+    public void ScaleBaseValue(float scale)
+    {
+        Vector2 newValue = BaseValue * scale;
+        SetValue(newValue);
     }
 
     /*
@@ -127,3 +138,6 @@ public partial class DisplayVector : Node2D
     }
     */
 }
+
+
+

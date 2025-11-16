@@ -1,7 +1,5 @@
 using Godot;
 using System;
-using System.Net;
-using System.Xml.Serialization;
 
 public abstract class FluidSimBase
 {
@@ -245,7 +243,8 @@ public class FluidSimBaseClass<T> : FluidSimBase
 
     public override object GetRandomVelocityObject()
     {
-        return (object)GetRandomVelocityObject();
+
+        return (object)GetRandomVelocity();
     }
 
     //Simulation methods would go here
@@ -390,13 +389,16 @@ public class FluidSimBaseClass<T> : FluidSimBase
         {
             if (velocity is T typedVelocity)
             {
+                GD.Print("Setting velocity at index (", col, ",", row, ") to ", typedVelocity);
                 velocityGrid[col][row] = typedVelocity;
             }
             else
             {
-                throw new ArgumentException("Invalid velocity type for SetVelocityAtIndex");
+                //throw new ArgumentException("Invalid velocity type for SetVelocityAtIndex");
+                GD.PrintErr("Invalid velocity type for SetVelocityAtIndex");
             }
         }
+        
     }
 
 
@@ -851,6 +853,19 @@ public partial class FluidSim : Node2D
 
     private FluidSimBase _fluidSim;
 
+    //parameters for the grid
+    private float xLength;
+    private float yLength;
+
+    private float xSpacing;
+    private float ySpacing;
+
+    private float tipSpacing;
+
+    private Vector2 gridOffset;
+
+    private Vector2 gridSize;
+
     public void setCornerVelocityCallback(int col, int row, Vector2 velocity)
     {
         if (col < 0 || col > NCols || row < 0 || row > NRows)
@@ -1030,7 +1045,7 @@ public partial class FluidSim : Node2D
         if (LeftClickAction == MouseClickMode.SetVelocity)
         {
             //Set the pressure at this tile to a random value
-            object newVelocity = _fluidSim.GetRandomVelocityObject();
+            var newVelocity = _fluidSim.GetRandomVelocityObject();
             _fluidSim.SetVelocityAtIndex(col, row, newVelocity);
             UpdateDisplay();
         }
@@ -1074,7 +1089,7 @@ public partial class FluidSim : Node2D
         //Rect2 tileRect = tileAreaShape.Shape.GetRect();
         //Vector2 tileSize = tileRect.Size;
 
-        Vector2 tileSize = abstractTile.GetTileSize();
+        Vector3 tileSize = abstractTile.GetTileSize();
         abstractTile.QueueFree();
 
         //Get the size of the area
@@ -1084,22 +1099,28 @@ public partial class FluidSim : Node2D
         //Calculate spacing
         //float xSpacing = areaSize.X / (NCols - 1);
         //float ySpacing = areaSize.Y / (NRows - 1);
-        float xSpacing = tileSize.X;
-        float ySpacing = tileSize.Y;
+        xSpacing = tileSize.X;
+        ySpacing = tileSize.Y;
+        tipSpacing = tileSize.Z;
 
 
         //Find the middle of the tiles
-        float xLength = NCols * xSpacing;
-        float yLength = NRows * ySpacing;
-        Vector2 gridSize = new Vector2(xLength, yLength);
-        Vector2 gridOffset = (areaSize - gridSize) / 2;
+        xLength = NCols * xSpacing;
+        yLength = NRows * (ySpacing + tipSpacing);
+        gridSize = new Vector2(xLength, yLength);
+        gridOffset = (areaSize - gridSize) / 2;
 
+        CreateDisplayTiles();
+        
+        CreateVelocityVectors();
+
+    }
+
+    private void CreateDisplayTiles()
+    {
         float[][] pressureMap = _fluidSim.GetPressureGrid();
-        object[][] velocityMap = _fluidSim.GetVelocityGridAsObjects();
 
-        GD.Print("Velocity map ", velocityMap, " pressure grid ", pressureMap);
         tileGrid = new DisplayTile[pressureMap.Length][];
-        vectorGrid = new DisplayVector[velocityMap.Length][];
 
         //Spawn tiles in a grid pattern
         for (int col = 0; col < pressureMap.Length; col++)
@@ -1109,7 +1130,7 @@ public partial class FluidSim : Node2D
             {
 
                 Vector2 TileUV = _fluidSim.GetTileUV(col, row);
-                Vector2 position = new Vector2(TileUV.X * (xLength - xSpacing), TileUV.Y * (yLength - ySpacing)) + gridOffset; //Offset to center the vector on the corner
+                Vector2 position = new Vector2(TileUV.X * (xLength - xSpacing), TileUV.Y * (yLength - ySpacing - tipSpacing)) + gridOffset; //Offset to center the vector on the corner
                 //Vector2 position = new Vector2(col * xSpacing, row * ySpacing) + gridOffset;
                 var tileInstance = TileScene.Instantiate<DisplayTile>();
                 tileInstance.Position = position;
@@ -1125,10 +1146,20 @@ public partial class FluidSim : Node2D
                 tileInstance.OnClickedCallback = OnDisplayTileClicked;
             }
         }
-        for (int i = 0; i < velocityMap.Length; i++)
+    }
+
+    private void CreateVelocityVectors()
+    {
+        object[][] velocityMap = _fluidSim.GetVelocityGridAsObjects();
+
+        int numCols = velocityMap.Length;
+        int numRows = velocityMap[0].Length;
+
+        vectorGrid = new DisplayVector[numCols][];
+        for (int i = 0; i < numCols; i++)
         {
-            vectorGrid[i] = new DisplayVector[velocityMap[i].Length];
-            for (int j = 0; j < velocityMap[i].Length; j++)
+            vectorGrid[i] = new DisplayVector[numRows];
+            for (int j = 0; j < numRows; j++)
             {
                 object rawVel = velocityMap[i][j];
                 DisplayVector vectorInstance = VectorScene.Instantiate<DisplayVector>();
@@ -1141,6 +1172,12 @@ public partial class FluidSim : Node2D
                 displayVector.col_index = i;
                 displayVector.row_index = j;
 
+                //Check if the display vector is a trippledisplayvector
+                if (displayVector is TrippleDisplayVector tripleDisplayVector)
+                {
+                    tripleDisplayVector.distanceOffset = ySpacing/2 ;
+                }
+
                 //displayVector.Value = velocity;
                 displayVector.SetValue(rawVel);
                 displayVector.OnVectorChanged = setCornerVelocityCallback;
@@ -1151,7 +1188,6 @@ public partial class FluidSim : Node2D
                 vectorInstance.Position = new Vector2(velocityUV.X * xLength, velocityUV.Y * yLength) + gridOffset; //Offset to center the vector on the corner
             }
         }
-
     }
    
 }

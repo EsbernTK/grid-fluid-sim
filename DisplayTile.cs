@@ -54,13 +54,13 @@ public partial class DisplayTile : Node2D
     }
 
 
-    public Vector2 GetPolygonSize(Polygon2D polygon)
+    public Vector3 GetPolygonSize(Polygon2D polygon)
     {
         if (polygon != null)
         {
             if (polygon.Polygon.Length == 0)
             {
-                return Vector2.Zero;
+                return Vector3.Zero;
             }
             else if (polygon.Polygon.Length == 6)
             {
@@ -68,8 +68,8 @@ public partial class DisplayTile : Node2D
             }
 
             //Get the bounding box of the polygon
-            Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
-            Vector2 max = new Vector2(float.MinValue, float.MinValue);
+            Vector3 min = new Vector3(float.MaxValue, float.MaxValue, 0);
+            Vector3 max = new Vector3(float.MinValue, float.MinValue, 0);
             foreach (Vector2 point in polygon.Polygon)
             {
                 if (point.X < min.X) min.X = point.X;
@@ -78,15 +78,16 @@ public partial class DisplayTile : Node2D
                 if (point.Y > max.Y) max.Y = point.Y;
             }
             //GD.Print("Polygon Size: ", (max - min), " Scale: ", polygon.Scale);
-            return (max - min) * polygon.Scale;
+            Vector3 scale = new Vector3(polygon.Scale.X, polygon.Scale.Y, 1);
+            return (max - min) * scale;
         }
         else
         {
-            return Vector2.Zero;
+            return Vector3.Zero;
         }
     }
 
-    public Vector2 GetHexagonSize()
+    public Vector3 GetHexagonSize()
     {
         //GD.Print("Getting Hexagon Size, MyColorRect: ", MyColorRect, " MyPolygon: ", MyPolygon);
         if (MyPolygon != null)
@@ -95,10 +96,10 @@ public partial class DisplayTile : Node2D
             float width = MyPolygon.Scale.X * (MyPolygon.Polygon[1].X - MyPolygon.Polygon[5].X);
             float height = MyPolygon.Scale.Y * (MyPolygon.Polygon[2].Y - MyPolygon.Polygon[1].Y);
             float tipHeight = MyPolygon.Scale.Y * (MyPolygon.Polygon[1].Y - MyPolygon.Polygon[0].Y);
-            height += tipHeight; //Add the top and bottom tips
+            //height += tipHeight; //Add the top and bottom tips
 
             //GD.Print("Polygon Size: ", new Vector2(width, height), " Scale: ", MyPolygon.Scale);
-            return new Vector2(width, height);
+            return new Vector3(width, height, tipHeight);
         }
         throw new NotImplementedException();
     }
@@ -113,22 +114,22 @@ public partial class DisplayTile : Node2D
         UpdateColor(NeutralColor);
     }
 
-    public Vector2 GetTileSize()
+    public Vector3 GetTileSize()
     {
         //GD.Print("Getting Tile Size, MyColorRect: ", MyColorRect, " MyPolygon: ", MyPolygon);
         if (MyColorRect != null)
         {
-            return MyColorRect.Size;
+            return new Vector3(MyColorRect.Size.X, MyColorRect.Size.Y, 0);
         }
         else if (MyPolygon != null)
         {
             //Get the bounding box of the polygon
-            Vector2 bbox = GetPolygonSize(MyPolygon);
+            Vector3 bbox = GetPolygonSize(MyPolygon);
             return bbox;
         }
         else
         {
-            return Vector2.Zero;
+            return Vector3.Zero;
         }
     }
 

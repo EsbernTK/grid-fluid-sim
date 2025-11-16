@@ -197,15 +197,49 @@ public class HexaFluidSimBaseClass : FluidSimBaseClass<Vector3>
         //edgeVelocities[4] = bottomLeftVelocity.Z * bottomLeftVector; // Bottom-Left
         //edgeVelocities[5] = bottomLeftVelocity.Y * leftVector; // Left
 
+        /* //Working???
         edgeVelocities[0] = topVelocity.X * -1 * diagonalVector; // Top-Left
         edgeVelocities[1] = topVelocity.Z * -1 * diagonalVector; // Top-Right
         edgeVelocities[2] = bottomRightVelocity.Y * rightVector; // Right
         edgeVelocities[3] = bottomRightVelocity.X * diagonalVector; // Bottom-Right
         edgeVelocities[4] = bottomLeftVelocity.Z * diagonalVector; // Bottom-Left
         edgeVelocities[5] = bottomLeftVelocity.Y * -1 * leftVector; // Left
+        */
+        edgeVelocities[0] = topVelocity.X * -1 * topLeftVector; // Top-Left
+        edgeVelocities[1] = topVelocity.Z * -1 * topRightVector; // Top-Right
+        edgeVelocities[2] = bottomRightVelocity.Y * -1 * rightVector; // Right
+        edgeVelocities[3] = bottomRightVelocity.X * bottomRightVector; // Bottom-Right
+        edgeVelocities[4] = bottomLeftVelocity.Z * bottomLeftVector; // Bottom-Left
+        edgeVelocities[5] = bottomLeftVelocity.Y * leftVector; // Left
 
         //GD.Print("Tile (", col, ",", row, ") Edge Velocities: ", Vector2ArrayToString(edgeVelocities));
         return edgeVelocities;
+    }
+
+    public float GetTileEdgeVelocitySum(int col, int row)
+    {
+        Vector3 topVelocity = GetVelocitySafe(col, row);
+        Vector3 bottomLeftVelocity = GetVelocitySafe(col, row + 1);
+        Vector3 bottomRightVelocity = GetVelocitySafe(col + 1, row + 1);
+
+
+        if (row % 2 == 1)
+        {
+            topVelocity = GetVelocitySafe(col + 1, row);
+            bottomLeftVelocity = GetVelocitySafe(col, row + 1);
+            bottomRightVelocity = GetVelocitySafe(col + 1, row + 1);
+        }
+
+        float topLeft = topVelocity.X * -1;
+        float topRight = topVelocity.Z * -1;
+        float right = bottomRightVelocity.Y * -1;
+        float bottomRight = bottomRightVelocity.X;
+        float bottomLeft = bottomLeftVelocity.Z;
+        float left = bottomLeftVelocity.Y;
+
+        return topLeft + topRight + right + bottomRight + bottomLeft + left;
+        
+
     }
 
 }
@@ -223,27 +257,36 @@ class HexaFluidEdgeSim : HexaFluidSimBaseClass
         Vector2[] edgeVelocities = GetTileEdgeVelocities(col, row);
         int[][] neighbourInds = GetNeighbourTileInds(col, row);
         float pressureSum = 0f;
+        float pressureNum = 0f;
         for (int i = 0; i < 6; i++)
         {
             int n_col = neighbourInds[i][0];
             int n_row = neighbourInds[i][1];
+            if(!IsTileValid(n_col, n_row))
+            {
+                continue;
+            }
             float neighbourPressure = GetPressureSafe(n_col, n_row);
             pressureSum += neighbourPressure;
+            pressureNum += 1f;
         }
+
+        /*
         Vector2 velocitySum = Vector2.Zero;
         for (int i = 0; i < 6; i++)
         {
             velocitySum += edgeVelocities[i];
         }
-
-
         //Calculate divergence
         float divergence = velocitySum.X + velocitySum.Y;
+        */
+        float divergence = GetTileEdgeVelocitySum(col, row);
+
         //For now we just update the divergence grid here
         divergenceGrid[col][row] = divergence;
 
 
-        float pressure = (pressureSum - density * cellSize * divergence / timeStep) / 6f;
+        float pressure = (pressureSum - density * cellSize * divergence / timeStep) / pressureNum;
         //GD.Print("Calculated Pressure at Tile (", col, ",", row, "): ", pressure, " from Divergence: ", divergence, " and Pressure Sum: ", pressureSum);
         return pressure;
     }
@@ -262,7 +305,7 @@ class HexaFluidEdgeSim : HexaFluidSimBaseClass
         float K = timeStep / (density * cellSize);
         float topLeftGradient = (bottomPressure - topLeftPressure); //Negative if the bottom pressure is lower than the top left
         float topRightGradient = (bottomPressure - topRightPressure); //Negative if the bottom pressure is lower than the top right
-        float topGradient = (topRightPressure - topLeftPressure); //Negative if the top left pressure is higher than the top right
+        float topGradient = -(topRightPressure - topLeftPressure); //Negative if the top left pressure is higher than the top right
         Vector3 newVelocity = currentVelocity - K * new Vector3(topLeftGradient, topGradient, topRightGradient);
         newVelocity *= GetValidVelocityAxis(col, row);
         return newVelocity;
