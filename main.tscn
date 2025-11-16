@@ -11,9 +11,9 @@ size = Vector2(1151, 649)
 script = ExtResource("1_h2yge")
 TileScene = ExtResource("2_h2yge")
 VectorScene = ExtResource("3_h2yge")
-SimulationStepsPerFrame = 30
+SimulationStepsPerFrame = 400
 SimulationType = 2
-LeftClickAction = 1
+LeftClickAction = 0
 NCols = 20
 MaxVelocity = 24.0
 

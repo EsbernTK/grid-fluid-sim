@@ -32,6 +32,7 @@ public abstract class FluidSimBase
     public abstract object[][] UpdateAndGetVelocityMap();
 
     public abstract Vector2 GetVelocityUV(int col, int row);
+    public abstract Vector2 GetVelocityUV(float col, float row);
     public abstract Vector2 GetTileUV(int col, int row);
 
     public abstract void RandomizeGrid();
@@ -205,6 +206,11 @@ public class FluidSimBaseClass<T> : FluidSimBase
     public override Vector2 GetVelocityUV(int col, int row)
     {
         //Returns where the velocity is in UV space
+        return GetVelocityUV((float)col, (float)row);
+    }
+
+    public override Vector2 GetVelocityUV(float col, float row)
+    {
         float u = (float)col / nCols;
         float v = (float)row / nRows;
         return new Vector2(u, v);

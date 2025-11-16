@@ -20,6 +20,18 @@ public class HexaFluidSimBaseClass : FluidSimBaseClass<Vector3>
         return new Vector2(u, v);
     }
 
+        public override Vector2 GetVelocityUV(float col, float row)
+    {
+        float u = (float)col / nCols;
+        float v = (float)(row) / nRows;
+        if (row % 2 == 1)
+        {
+            // Odd rows are shifted
+            u -= 0.5f / nCols;
+        }
+        return new Vector2(u, v);
+    }
+
     public override Vector2 GetTileUV(int col, int row)
     {
 
