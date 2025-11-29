@@ -41,6 +41,8 @@ public partial class DisplayVector : Node2D
     [Export] public bool ShowOriginDot { get; set; } = true;
     [Export(PropertyHint.Range, "2,16,1")] public float OriginDotRadius { get; set; } = 4f;
 
+    [Export] public virtual bool ShowVector { get; set; } = true;
+
     public override void _Ready()
     {
         //Print that we are ready
@@ -49,7 +51,10 @@ public partial class DisplayVector : Node2D
 
     public override void _Draw()
     {
-        DrawArrow(Vector2.Zero, Value);
+        if (ShowVector)
+        {
+            DrawArrow(Vector2.Zero, Value);
+        }
     }
 
     public void DrawArrow(Vector2 from, Vector2 to)

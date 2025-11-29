@@ -40,6 +40,14 @@ public abstract class FluidSimBase
     public abstract void ZeroGrid();
 
     public abstract object GetRandomVelocityObject();
+
+    public float deltaTime = 1f;
+    public float viscosity = 0.1f;
+    public float timeStep = 1f / 60f;
+    public float density = 1f;
+    public float cellSize = 1f;
+    public float maxVelocity = 5f;
+
 }
 
 
@@ -50,12 +58,6 @@ public class FluidSimBaseClass<T> : FluidSimBase
     public float[][] pressureGrid;
     public float[][] tempPressureGrid;
     public float[][] divergenceGrid;
-
-    public float viscosity = 0.1f;
-    public float timeStep = 1f / 60f;
-    public float density = 1f;
-    public float cellSize = 1f;
-    public float maxVelocity = 5f;
 
     public int nCols;
     public int nRows;
@@ -731,6 +733,24 @@ public partial class FluidSim : Node2D
         }
     }
 
+    private float _timeStep = 1f / 60f;
+
+    //Make a slider in the UI to set the time step
+    
+    [Export(PropertyHint.Range, "0.0001,1,0.0001")] public float TimeStep
+    {
+        get => _timeStep;
+        set
+        {
+            _timeStep = value;
+            if (this._fluidSim != null)
+            {
+                this._fluidSim.timeStep = _timeStep;
+            }
+        }
+    }
+
+
 
     private bool _randomizeSimulation;
     //Make a button in the UI to calculate the next step
@@ -843,15 +863,40 @@ public partial class FluidSim : Node2D
         }
     }
 
+    [Export] public float MaxVelocity { get; set; } = 5f;
+
+
+    private bool _showVectors = true;
+    [Export] 
+    public bool ShowVectors { 
+        get => _showVectors;
+        set
+        {
+            _showVectors = value;
+            if (vectorGrid == null)
+                return;
+
+            for (int col = 0; col <= NCols; col++)
+            {
+                for (int row = 0; row <= NRows; row++)
+                {
+                    if (vectorGrid[col][row] != null)
+                    {
+                        vectorGrid[col][row].ShowVector = value;
+                        vectorGrid[col][row].QueueRedraw();
+                    }
+                }
+            }
+        } 
+    }
+
     Area2D FluidArea => GetNode<Area2D>("FluidArea");
     CollisionShape2D FluidAreaShape => FluidArea.GetNode<CollisionShape2D>("CollisionShape2D");
 
     public float viscosity = 0.1f;
-    public float timeStep = 1f / 60f;
     public float density = 1f;
     public float cellSize = 1f;
 
-    [Export] public float MaxVelocity = 5f;
 
     public DisplayVector[][] vectorGrid;
     public DisplayTile[][] tileGrid;
@@ -984,6 +1029,9 @@ public partial class FluidSim : Node2D
             if (Engine.IsEditorHint())
                 _stepSimulation = false;
 
+            else
+                _fluidSim.deltaTime = (float)delta;
+
             /*
             for (int i = 0; i < SimulationStepsPerFrame; i++)
             {
@@ -1070,11 +1118,11 @@ public partial class FluidSim : Node2D
         }
 
         if( SimulationType == FluidSimType.CornerBased)
-            this._fluidSim = new FluidCornerSim(NCols, NRows, viscosity, timeStep, density, cellSize, MaxVelocity);
+            this._fluidSim = new FluidCornerSim(NCols, NRows, viscosity, _timeStep, density, cellSize, MaxVelocity);
         else if (SimulationType == FluidSimType.EdgeBased)
-            this._fluidSim = new FluidEdgeSim(NCols, NRows, viscosity, timeStep, density, cellSize, MaxVelocity);
+            this._fluidSim = new FluidEdgeSim(NCols, NRows, viscosity, _timeStep, density, cellSize, MaxVelocity);
         else if (SimulationType == FluidSimType.HexEdgeBased)
-            this._fluidSim = new HexaFluidEdgeSim(NCols, NRows, viscosity, timeStep, density, cellSize, MaxVelocity);
+            this._fluidSim = new HexaFluidEdgeSim(NCols, NRows, viscosity, _timeStep, density, cellSize, MaxVelocity);
         else
         {
             GD.PrintErr("Unknown SimulationType: ", SimulationType);

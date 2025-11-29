@@ -17,6 +17,24 @@ public partial class TrippleDisplayVector : DisplayVector
     [Export] public float degreesOffset = 60f;
     [Export] public float distanceOffset = 20f;
 
+    [Export] public override bool ShowVector
+    {
+        get => base.ShowVector;
+        set
+        {
+            base.ShowVector = value;
+            if (vectorComponents[0] != null)
+                vectorComponents[0].ShowVector = value;
+                vectorComponents[0].QueueRedraw();
+            if (vectorComponents[1] != null)
+                vectorComponents[1].ShowVector = value;
+                vectorComponents[1].QueueRedraw();
+            if (vectorComponents[2] != null)
+                vectorComponents[2].ShowVector = value;
+                vectorComponents[2].QueueRedraw();
+        }
+    }
+
 
     public override void _Ready()
     {

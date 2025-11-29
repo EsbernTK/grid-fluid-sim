@@ -20,7 +20,7 @@ public class HexaFluidSimBaseClass : FluidSimBaseClass<Vector3>
         return new Vector2(u, v);
     }
 
-        public override Vector2 GetVelocityUV(float col, float row)
+    public override Vector2 GetVelocityUV(float col, float row)
     {
         float u = (float)col / nCols;
         float v = (float)(row) / nRows;
@@ -297,8 +297,9 @@ class HexaFluidEdgeSim : HexaFluidSimBaseClass
         //For now we just update the divergence grid here
         divergenceGrid[col][row] = divergence;
 
+        float timeFactor = timeStep;//deltaTime;//timeStep * deltaTime;
 
-        float pressure = (pressureSum - density * cellSize * divergence / timeStep) / pressureNum;
+        float pressure = (pressureSum - density * cellSize * divergence / timeFactor) / pressureNum;
         //GD.Print("Calculated Pressure at Tile (", col, ",", row, "): ", pressure, " from Divergence: ", divergence, " and Pressure Sum: ", pressureSum);
         return pressure;
     }
@@ -314,7 +315,10 @@ class HexaFluidEdgeSim : HexaFluidSimBaseClass
             bottomPressure = GetPressureSafe(col - 1, row);
         }
         Vector3 currentVelocity = GetVelocitySafe(col, row);
-        float K = timeStep / (density * cellSize);
+        float timeFactor = timeStep;//deltaTime;//timeStep * deltaTime;
+
+
+        float K = timeFactor / (density * cellSize);
         float topLeftGradient = (bottomPressure - topLeftPressure); //Negative if the bottom pressure is lower than the top left
         float topRightGradient = (bottomPressure - topRightPressure); //Negative if the bottom pressure is lower than the top right
         float topGradient = -(topRightPressure - topLeftPressure); //Negative if the top left pressure is higher than the top right
